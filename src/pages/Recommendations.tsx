@@ -1,18 +1,49 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Filter } from 'lucide-react';
+import { Sparkles, Filter, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { RecommendationCard } from '@/components/recommendations/RecommendationCard';
-import { stocks } from '@/data/stocksData';
+import { useAllStocks } from '@/hooks/useStockData';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type FilterType = 'all' | 'buy' | 'hold' | 'sell';
 
+const getRecommendation = (change: number): string => {
+  if (change > 2) return 'شراء قوي';
+  if (change > 0) return 'شراء';
+  if (change > -2) return 'احتفاظ';
+  if (change > -4) return 'بيع';
+  return 'بيع قوي';
+};
+
+const getAiScore = (change: number, volume: number): number => {
+  const baseScore = 50 + (change * 5);
+  const volumeBonus = Math.min(volume / 1000000, 10);
+  return Math.min(100, Math.max(0, Math.round(baseScore + volumeBonus)));
+};
+
+const getRiskLevel = (changePercent: number): 'منخفض' | 'متوسط' | 'مرتفع' => {
+  const absChange = Math.abs(changePercent);
+  if (absChange < 2) return 'منخفض';
+  if (absChange < 5) return 'متوسط';
+  return 'مرتفع';
+};
+
 const Recommendations = () => {
   const [filter, setFilter] = useState<FilterType>('all');
+  const { data: stocks, isLoading, error } = useAllStocks();
 
-  const filteredStocks = stocks
+  const stocksWithRecommendations = (stocks || []).map(stock => ({
+    ...stock,
+    recommendation: getRecommendation(stock.change) as 'شراء قوي' | 'شراء' | 'احتفاظ' | 'بيع' | 'بيع قوي',
+    aiScore: getAiScore(stock.change, stock.volume || 0),
+    riskLevel: getRiskLevel(stock.changePercent),
+    pe: stock.price / 5, // تقدير مبسط
+    eps: 5, // تقدير مبسط
+  }));
+
+  const filteredStocks = stocksWithRecommendations
     .filter(stock => {
       if (filter === 'all') return true;
       if (filter === 'buy') return stock.recommendation.includes('شراء');
@@ -84,12 +115,29 @@ const Recommendations = () => {
           عرض {filteredStocks.length} توصية
         </motion.p>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <span className="mr-3 text-muted-foreground">جاري تحميل البيانات...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-20 text-destructive">
+            حدث خطأ في تحميل البيانات
+          </div>
+        )}
+
         {/* Recommendations Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredStocks.map((stock, index) => (
-            <RecommendationCard key={stock.symbol} stock={stock} index={index} />
-          ))}
-        </div>
+        {!isLoading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredStocks.map((stock, index) => (
+              <RecommendationCard key={stock.symbol} stock={stock} index={index} />
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
