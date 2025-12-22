@@ -1,18 +1,19 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
   LayoutDashboard, 
   Search, 
-  Bell, 
-  Settings,
   Menu,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { NotificationsPanel } from './NotificationsPanel';
+import { SettingsPanel } from './SettingsPanel';
+import { stocks } from '@/data/stocksData';
 
 const navItems = [
   { path: '/', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -22,8 +23,22 @@ const navItems = [
 
 export const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const filteredStocks = stocks.filter(
+    stock =>
+      stock.symbol.includes(searchQuery) ||
+      stock.name.includes(searchQuery)
+  ).slice(0, 5);
+
+  const handleStockSelect = (symbol: string) => {
+    navigate(`/stock/${symbol}`);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border">
@@ -70,24 +85,37 @@ export const Header = () => {
           {/* Search & Actions */}
           <div className="flex items-center gap-3">
             <div className="hidden lg:flex items-center relative">
-              <Search className="absolute right-3 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute right-3 w-4 h-4 text-muted-foreground z-10" />
               <Input
                 type="text"
                 placeholder="ابحث عن سهم..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(e.target.value.length > 0);
+                }}
+                onFocus={() => setShowSearchResults(searchQuery.length > 0)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                 className="w-64 pr-10 bg-secondary/50 border-border focus:border-primary"
               />
+              {showSearchResults && filteredStocks.length > 0 && (
+                <div className="absolute top-full right-0 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
+                  {filteredStocks.map((stock) => (
+                    <button
+                      key={stock.symbol}
+                      onClick={() => handleStockSelect(stock.symbol)}
+                      className="w-full px-4 py-2 text-right hover:bg-accent flex items-center justify-between transition-colors"
+                    >
+                      <span className="text-sm text-muted-foreground">{stock.symbol}</span>
+                      <span className="font-medium">{stock.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 left-1 w-2 h-2 bg-destructive rounded-full" />
-            </Button>
-            
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
-            </Button>
+            <NotificationsPanel />
+            <SettingsPanel />
 
             {/* Mobile Menu Button */}
             <Button 
