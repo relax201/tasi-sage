@@ -21,11 +21,12 @@ serve(async (req) => {
       { symbol: '1120', name: 'الراجحي', sector: 'البنوك' },
       { symbol: '1010', name: 'الرياض', sector: 'البنوك' },
       { symbol: '1150', name: 'العربي الوطني', sector: 'البنوك' },
-      { symbol: '1050', name: 'البنك السعودي للاستثمار', sector: 'البنوك' },
-      { symbol: '1020', name: 'بنك الجزيرة', sector: 'البنوك' },
+      { symbol: '1050', name: 'بنك الجزيرة', sector: 'البنوك' },
+      { symbol: '1020', name: 'البنك السعودي للاستثمار', sector: 'البنوك' },
       { symbol: '1030', name: 'الإنماء', sector: 'البنوك' },
       { symbol: '1080', name: 'البلاد', sector: 'البنوك' },
       { symbol: '1060', name: 'الأول', sector: 'البنوك' },
+      { symbol: '1140', name: 'البلاد', sector: 'البنوك' },
       
       // الطاقة
       { symbol: '2222', name: 'أرامكو السعودية', sector: 'الطاقة' },
@@ -40,7 +41,11 @@ serve(async (req) => {
       { symbol: '2290', name: 'ينساب', sector: 'المواد الأساسية' },
       { symbol: '2060', name: 'التصنيع', sector: 'المواد الأساسية' },
       { symbol: '1211', name: 'معادن', sector: 'المواد الأساسية' },
-      { symbol: '2020', name: 'سافكو', sector: 'المواد الأساسية' },
+      { symbol: '2020', name: 'سابك للمغذيات', sector: 'المواد الأساسية' },
+      { symbol: '2330', name: 'المتقدمة', sector: 'المواد الأساسية' },
+      { symbol: '2170', name: 'اللجين', sector: 'المواد الأساسية' },
+      { symbol: '2040', name: 'الصحراء للبتروكيماويات', sector: 'المواد الأساسية' },
+      { symbol: '4005', name: 'المتقدمة للبتروكيماويات', sector: 'المواد الأساسية' },
       
       // الاتصالات
       { symbol: '7010', name: 'اس تي سي', sector: 'الاتصالات' },
@@ -52,34 +57,67 @@ serve(async (req) => {
       { symbol: '4001', name: 'أسواق العثيم', sector: 'التجزئة' },
       { symbol: '4200', name: 'الدريس', sector: 'التجزئة' },
       { symbol: '4190', name: 'جرير', sector: 'التجزئة' },
-      { symbol: '4002', name: 'المواساة', sector: 'الرعاية الصحية' },
+      { symbol: '4050', name: 'ساسكو', sector: 'التجزئة' },
+      { symbol: '4240', name: 'الحكير', sector: 'التجزئة' },
       
       // الأغذية
-      { symbol: '2170', name: 'المراعي', sector: 'الأغذية' },
-      { symbol: '2280', name: 'المملكة', sector: 'الأغذية' },
+      { symbol: '2280', name: 'المراعي', sector: 'الأغذية' },
+      { symbol: '2270', name: 'سدافكو', sector: 'الأغذية' },
       { symbol: '6010', name: 'نادك', sector: 'الأغذية' },
-      { symbol: '2050', name: 'صافولا', sector: 'الأغذية' },
+      { symbol: '6020', name: 'صافولا', sector: 'الأغذية' },
+      { symbol: '6050', name: 'صافي', sector: 'الأغذية' },
+      { symbol: '4040', name: 'سيسكو', sector: 'الأغذية' },
+      { symbol: '2070', name: 'المدينة المنورة', sector: 'الأغذية' },
+      { symbol: '2080', name: 'الغذائية', sector: 'الأغذية' },
+      { symbol: '2090', name: 'حلواني إخوان', sector: 'الأغذية' },
+      { symbol: '2100', name: 'وفرة', sector: 'الأغذية' },
       
       // العقارات
       { symbol: '4300', name: 'دار الأركان', sector: 'العقارات' },
       { symbol: '4320', name: 'الأندلس', sector: 'العقارات' },
-      { symbol: '4230', name: 'البابطين', sector: 'الصناعة' },
+      { symbol: '4210', name: 'الفخارية', sector: 'العقارات' },
+      { symbol: '4220', name: 'إعمار', sector: 'العقارات' },
+      { symbol: '4230', name: 'ريد سي', sector: 'العقارات' },
+      { symbol: '4250', name: 'جبل عمر', sector: 'العقارات' },
+      { symbol: '4290', name: 'الخليجية العامة', sector: 'العقارات' },
+      
+      // الرعاية الصحية
+      { symbol: '4002', name: 'المواساة', sector: 'الرعاية الصحية' },
+      { symbol: '4004', name: 'دله الصحية', sector: 'الرعاية الصحية' },
+      { symbol: '4007', name: 'التخصصي', sector: 'الرعاية الصحية' },
+      { symbol: '4009', name: 'سليمان الحبيب', sector: 'الرعاية الصحية' },
+      { symbol: '4321', name: 'الرعاية الطبية', sector: 'الرعاية الصحية' },
       
       // التأمين
       { symbol: '8010', name: 'التعاونية', sector: 'التأمين' },
       { symbol: '8200', name: 'الدرع العربي', sector: 'التأمين' },
       { symbol: '8030', name: 'ميدغلف', sector: 'التأمين' },
+      { symbol: '8020', name: 'ملاذ للتأمين', sector: 'التأمين' },
+      { symbol: '8040', name: 'أليانز', sector: 'التأمين' },
+      { symbol: '8050', name: 'سلامة', sector: 'التأمين' },
       
-      // الترفيه
-      { symbol: '4210', name: 'الحكير', sector: 'الترفيه' },
+      // إسمنت
+      { symbol: '3010', name: 'أسمنت العربية', sector: 'إسمنت' },
+      { symbol: '3020', name: 'أسمنت اليمامة', sector: 'إسمنت' },
+      { symbol: '3030', name: 'أسمنت السعودية', sector: 'إسمنت' },
+      { symbol: '3040', name: 'أسمنت القصيم', sector: 'إسمنت' },
+      { symbol: '3050', name: 'أسمنت الجنوب', sector: 'إسمنت' },
+      { symbol: '3060', name: 'أسمنت ينبع', sector: 'إسمنت' },
+      { symbol: '4013', name: 'سمنت نجران', sector: 'إسمنت' },
+      
+      // الزراعة
+      { symbol: '2110', name: 'الشرقية للتنمية', sector: 'الزراعة' },
+      { symbol: '2120', name: 'تبوك الزراعية', sector: 'الزراعة' },
+      { symbol: '2130', name: 'صدق', sector: 'الزراعة' },
+      { symbol: '2140', name: 'القصيم الزراعية', sector: 'الزراعة' },
+      { symbol: '2150', name: 'حائل الزراعية', sector: 'الزراعة' },
+      
+      // النقل
+      { symbol: '4080', name: 'سناد القابضة', sector: 'النقل' },
+      { symbol: '4260', name: 'بدجت السعودية', sector: 'النقل' },
+      
+      // الخدمات المالية
       { symbol: '1820', name: 'مجموعة تداول', sector: 'الخدمات المالية' },
-      { symbol: '2270', name: 'سدافكو', sector: 'الأغذية' },
-      
-      // الصناعة
-      { symbol: '3010', name: 'أسمنت العربية', sector: 'الصناعة' },
-      { symbol: '3020', name: 'أسمنت اليمامة', sector: 'الصناعة' },
-      { symbol: '3030', name: 'أسمنت السعودية', sector: 'الصناعة' },
-      { symbol: '2330', name: 'المتقدمة', sector: 'المواد الأساسية' },
     ];
 
     // Fetch real-time data for all stocks in parallel
