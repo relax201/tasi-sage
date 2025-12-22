@@ -1,80 +1,74 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { fetchStockData, getAIAnalysis, parseQuoteResponse, parseDailyData, AIAnalysis } from '@/lib/api/stockApi';
-import { Stock } from '@/data/stocksData';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { 
+  fetchStockData, 
+  fetchAllStocks, 
+  fetchMarketIndices, 
+  getAIAnalysis,
+  type LiveStock, 
+  type MarketIndex,
+  type AIAnalysis 
+} from '@/lib/api/stockApi';
 import { useToast } from '@/hooks/use-toast';
 
-export const useStockQuote = (symbol: string) => {
-  const { toast } = useToast();
-
+// Hook to fetch all stocks
+export const useAllStocks = () => {
   return useQuery({
-    queryKey: ['stockQuote', symbol],
-    queryFn: async () => {
-      const response = await fetchStockData(symbol, 'quote');
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      return parseQuoteResponse(response.data);
-    },
+    queryKey: ['allStocks'],
+    queryFn: fetchAllStocks,
     staleTime: 60000, // 1 minute
-    retry: 1,
-    meta: {
-      onError: (error: Error) => {
-        toast({
-          title: 'خطأ في جلب البيانات',
-          description: error.message,
-          variant: 'destructive',
-        });
-      },
-    },
+    refetchInterval: 60000, // Auto refresh every minute
+    retry: 2,
   });
 };
 
-export const useStockHistory = (symbol: string) => {
+// Hook to fetch market indices
+export const useMarketIndices = () => {
   return useQuery({
-    queryKey: ['stockHistory', symbol],
-    queryFn: async () => {
-      const response = await fetchStockData(symbol, 'daily');
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      return parseDailyData(response.data);
-    },
-    staleTime: 300000, // 5 minutes
-    retry: 1,
+    queryKey: ['marketIndices'],
+    queryFn: fetchMarketIndices,
+    staleTime: 60000,
+    refetchInterval: 60000,
+    retry: 2,
   });
 };
 
-export const useAIAnalysis = (stock: Stock) => {
+// Hook to fetch single stock data
+export const useStockData = (symbol: string) => {
+  return useQuery({
+    queryKey: ['stock', symbol],
+    queryFn: () => fetchStockData(symbol, 'all'),
+    staleTime: 30000, // 30 seconds
+    enabled: !!symbol,
+    retry: 2,
+  });
+};
+
+// Hook for AI analysis
+export const useAIAnalysis = (stockData: any) => {
   const { toast } = useToast();
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchAnalysis = async (type: 'recommendation' | 'technical' = 'recommendation') => {
+  const fetchAnalysis = useCallback(async (type: 'recommendation' | 'technical' = 'recommendation') => {
+    if (!stockData) return null;
+    
     setIsLoading(true);
     try {
-      const response = await getAIAnalysis(stock, type);
-      if (response.error) {
-        toast({
-          title: 'خطأ في التحليل',
-          description: response.error,
-          variant: 'destructive',
-        });
-        return null;
-      }
-      setAnalysis(response.analysis);
-      return response.analysis;
-    } catch (error) {
+      const result = await getAIAnalysis(stockData, type);
+      setAnalysis(result);
+      return result;
+    } catch (error: any) {
       toast({
-        title: 'خطأ',
-        description: 'فشل في الحصول على تحليل الذكاء الاصطناعي',
+        title: 'خطأ في التحليل',
+        description: error.message || 'فشل في الحصول على تحليل الذكاء الاصطناعي',
         variant: 'destructive',
       });
       return null;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [stockData, toast]);
 
   return {
     analysis,
@@ -83,22 +77,20 @@ export const useAIAnalysis = (stock: Stock) => {
   };
 };
 
-export const useRefreshStockData = () => {
+// Hook to refresh stock data manually
+export const useRefreshStock = () => {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refresh = async (symbol: string) => {
     setIsRefreshing(true);
     try {
-      const response = await fetchStockData(symbol, 'quote');
-      if (response.error) {
-        throw new Error(response.error);
-      }
+      const data = await fetchStockData(symbol, 'all');
       toast({
         title: 'تم التحديث',
         description: 'تم تحديث بيانات السهم بنجاح',
       });
-      return parseQuoteResponse(response.data);
+      return data;
     } catch (error: any) {
       toast({
         title: 'خطأ في التحديث',

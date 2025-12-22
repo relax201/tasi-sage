@@ -2,44 +2,54 @@ import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Activity, 
   BarChart3,
-  Users,
-  Zap
+  Activity
 } from 'lucide-react';
+import { type LiveStock } from '@/lib/api/stockApi';
 
-const stats = [
-  {
-    label: 'الأسهم الصاعدة',
-    value: '128',
-    change: '+12',
-    icon: TrendingUp,
-    color: 'success',
-  },
-  {
-    label: 'الأسهم الهابطة',
-    value: '67',
-    change: '-8',
-    icon: TrendingDown,
-    color: 'destructive',
-  },
-  {
-    label: 'حجم التداول',
-    value: '4.2B',
-    change: '+15%',
-    icon: BarChart3,
-    color: 'primary',
-  },
-  {
-    label: 'الصفقات',
-    value: '156K',
-    change: '+5%',
-    icon: Activity,
-    color: 'warning',
-  },
-];
+interface QuickStatsProps {
+  stocks: LiveStock[];
+}
 
-export const QuickStats = () => {
+export const QuickStats = ({ stocks }: QuickStatsProps) => {
+  const gainers = stocks.filter(s => s.change > 0).length;
+  const losers = stocks.filter(s => s.change < 0).length;
+  const totalVolume = stocks.reduce((sum, s) => sum + (s.volume || 0), 0);
+  const unchanged = stocks.filter(s => s.change === 0).length;
+
+  const stats = [
+    {
+      label: 'الأسهم الصاعدة',
+      value: gainers.toString(),
+      change: `+${gainers}`,
+      icon: TrendingUp,
+      color: 'success',
+    },
+    {
+      label: 'الأسهم الهابطة',
+      value: losers.toString(),
+      change: `-${losers}`,
+      icon: TrendingDown,
+      color: 'destructive',
+    },
+    {
+      label: 'حجم التداول',
+      value: totalVolume > 1000000000 
+        ? `${(totalVolume / 1000000000).toFixed(1)}B`
+        : `${(totalVolume / 1000000).toFixed(1)}M`,
+      change: 'إجمالي',
+      icon: BarChart3,
+      color: 'primary',
+    },
+    {
+      label: 'بدون تغيير',
+      value: unchanged.toString(),
+      change: '~',
+      icon: Activity,
+      color: 'warning',
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat, index) => (
