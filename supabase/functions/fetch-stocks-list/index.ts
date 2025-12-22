@@ -16,21 +16,70 @@ serve(async (req) => {
 
     // List of major TASI stocks with their Yahoo Finance symbols
     const tasiStocks = [
-      { symbol: '2222', name: 'أرامكو السعودية', sector: 'الطاقة' },
+      // البنوك
       { symbol: '1180', name: 'الأهلي السعودي', sector: 'البنوك' },
-      { symbol: '2010', name: 'سابك', sector: 'المواد الأساسية' },
-      { symbol: '7010', name: 'اس تي سي', sector: 'الاتصالات' },
-      { symbol: '1010', name: 'الرياض', sector: 'البنوك' },
-      { symbol: '2350', name: 'كيان السعودية', sector: 'المواد الأساسية' },
-      { symbol: '4030', name: 'البحري', sector: 'النقل' },
-      { symbol: '4200', name: 'الدريس', sector: 'التجزئة' },
       { symbol: '1120', name: 'الراجحي', sector: 'البنوك' },
-      { symbol: '2380', name: 'بترورابغ', sector: 'الطاقة' },
-      { symbol: '2310', name: 'سبكيم', sector: 'المواد الأساسية' },
-      { symbol: '2170', name: 'المراعي', sector: 'الأغذية' },
-      { symbol: '4003', name: 'إكسترا', sector: 'التجزئة' },
-      { symbol: '4001', name: 'أسواق ع العثيم', sector: 'التجزئة' },
+      { symbol: '1010', name: 'الرياض', sector: 'البنوك' },
       { symbol: '1150', name: 'العربي الوطني', sector: 'البنوك' },
+      { symbol: '1050', name: 'البنك السعودي للاستثمار', sector: 'البنوك' },
+      { symbol: '1020', name: 'بنك الجزيرة', sector: 'البنوك' },
+      { symbol: '1030', name: 'الإنماء', sector: 'البنوك' },
+      { symbol: '1080', name: 'البلاد', sector: 'البنوك' },
+      { symbol: '1060', name: 'الأول', sector: 'البنوك' },
+      
+      // الطاقة
+      { symbol: '2222', name: 'أرامكو السعودية', sector: 'الطاقة' },
+      { symbol: '2380', name: 'بترورابغ', sector: 'الطاقة' },
+      { symbol: '4030', name: 'البحري', sector: 'النقل' },
+      
+      // المواد الأساسية
+      { symbol: '2010', name: 'سابك', sector: 'المواد الأساسية' },
+      { symbol: '2350', name: 'كيان السعودية', sector: 'المواد الأساسية' },
+      { symbol: '2310', name: 'سبكيم', sector: 'المواد الأساسية' },
+      { symbol: '2250', name: 'المجموعة السعودية', sector: 'المواد الأساسية' },
+      { symbol: '2290', name: 'ينساب', sector: 'المواد الأساسية' },
+      { symbol: '2060', name: 'التصنيع', sector: 'المواد الأساسية' },
+      { symbol: '1211', name: 'معادن', sector: 'المواد الأساسية' },
+      { symbol: '2020', name: 'سافكو', sector: 'المواد الأساسية' },
+      
+      // الاتصالات
+      { symbol: '7010', name: 'اس تي سي', sector: 'الاتصالات' },
+      { symbol: '7020', name: 'زين السعودية', sector: 'الاتصالات' },
+      { symbol: '7030', name: 'موبايلي', sector: 'الاتصالات' },
+      
+      // التجزئة
+      { symbol: '4003', name: 'إكسترا', sector: 'التجزئة' },
+      { symbol: '4001', name: 'أسواق العثيم', sector: 'التجزئة' },
+      { symbol: '4200', name: 'الدريس', sector: 'التجزئة' },
+      { symbol: '4190', name: 'جرير', sector: 'التجزئة' },
+      { symbol: '4002', name: 'المواساة', sector: 'الرعاية الصحية' },
+      
+      // الأغذية
+      { symbol: '2170', name: 'المراعي', sector: 'الأغذية' },
+      { symbol: '2280', name: 'المملكة', sector: 'الأغذية' },
+      { symbol: '6010', name: 'نادك', sector: 'الأغذية' },
+      { symbol: '2050', name: 'صافولا', sector: 'الأغذية' },
+      
+      // العقارات
+      { symbol: '4300', name: 'دار الأركان', sector: 'العقارات' },
+      { symbol: '4320', name: 'الأندلس', sector: 'العقارات' },
+      { symbol: '4230', name: 'البابطين', sector: 'الصناعة' },
+      
+      // التأمين
+      { symbol: '8010', name: 'التعاونية', sector: 'التأمين' },
+      { symbol: '8200', name: 'الدرع العربي', sector: 'التأمين' },
+      { symbol: '8030', name: 'ميدغلف', sector: 'التأمين' },
+      
+      // الترفيه
+      { symbol: '4210', name: 'الحكير', sector: 'الترفيه' },
+      { symbol: '1820', name: 'مجموعة تداول', sector: 'الخدمات المالية' },
+      { symbol: '2270', name: 'سدافكو', sector: 'الأغذية' },
+      
+      // الصناعة
+      { symbol: '3010', name: 'أسمنت العربية', sector: 'الصناعة' },
+      { symbol: '3020', name: 'أسمنت اليمامة', sector: 'الصناعة' },
+      { symbol: '3030', name: 'أسمنت السعودية', sector: 'الصناعة' },
+      { symbol: '2330', name: 'المتقدمة', sector: 'المواد الأساسية' },
     ];
 
     // Fetch real-time data for all stocks in parallel
