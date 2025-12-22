@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { NotificationsPanel } from './NotificationsPanel';
 import { SettingsPanel } from './SettingsPanel';
+import { UserMenu } from '@/components/user/UserMenu';
 import { stocks } from '@/data/stocksData';
 
 const navItems = [
@@ -116,6 +117,7 @@ export const Header = () => {
             
             <NotificationsPanel />
             <SettingsPanel />
+            <UserMenu />
 
             {/* Mobile Menu Button */}
             <Button 
