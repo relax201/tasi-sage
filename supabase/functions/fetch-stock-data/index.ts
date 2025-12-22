@@ -52,6 +52,37 @@ serve(async (req) => {
       
       // Get the latest values
       const lastIndex = timestamps ? timestamps.length - 1 : 0;
+
+      // Fetch fundamental data from quoteSummary endpoint
+      let marketCap = 0;
+      let peRatio = 0;
+      let eps = 0;
+      
+      try {
+        const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yahooSymbol}?modules=price,defaultKeyStatistics,summaryDetail`;
+        console.log(`Calling Yahoo Finance Summary: ${summaryUrl}`);
+        
+        const summaryResponse = await fetch(summaryUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        if (summaryResponse.ok) {
+          const summaryData = await summaryResponse.json();
+          const priceData = summaryData?.quoteSummary?.result?.[0]?.price;
+          const statsData = summaryData?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+          const detailData = summaryData?.quoteSummary?.result?.[0]?.summaryDetail;
+          
+          marketCap = priceData?.marketCap?.raw || detailData?.marketCap?.raw || 0;
+          peRatio = detailData?.trailingPE?.raw || priceData?.trailingPE?.raw || statsData?.trailingPE?.raw || 0;
+          eps = statsData?.trailingEps?.raw || detailData?.trailingEps?.raw || 0;
+          
+          console.log(`Fundamental data - MarketCap: ${marketCap}, PE: ${peRatio}, EPS: ${eps}`);
+        }
+      } catch (summaryError) {
+        console.log('Could not fetch summary data, using defaults:', summaryError);
+      }
       
       data = {
         symbol: symbol,
@@ -67,7 +98,9 @@ serve(async (req) => {
         low: quote?.low?.[lastIndex] || meta?.regularMarketDayLow || 0,
         open: quote?.open?.[lastIndex] || meta?.regularMarketOpen || 0,
         volume: quote?.volume?.[lastIndex] || meta?.regularMarketVolume || 0,
-        marketCap: meta?.marketCap || 0,
+        marketCap: marketCap || meta?.marketCap || 0,
+        peRatio: peRatio,
+        eps: eps,
         fiftyTwoWeekHigh: meta?.fiftyTwoWeekHigh || 0,
         fiftyTwoWeekLow: meta?.fiftyTwoWeekLow || 0,
         timestamp: new Date().toISOString(),
