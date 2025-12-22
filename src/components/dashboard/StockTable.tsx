@@ -6,19 +6,34 @@ import {
   TrendingDown, 
   ArrowUpDown,
   ChevronLeft,
-  Sparkles
+  Loader2
 } from 'lucide-react';
-import { stocks, sectors, type Stock } from '@/data/stocksData';
+import { type LiveStock } from '@/lib/api/stockApi';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-type SortField = 'name' | 'price' | 'changePercent' | 'volume' | 'aiScore';
+type SortField = 'name' | 'price' | 'changePercent' | 'volume';
 type SortDirection = 'asc' | 'desc';
 
-export const StockTable = () => {
+const sectors = [
+  'الكل',
+  'الطاقة',
+  'البنوك',
+  'المواد الأساسية',
+  'الاتصالات',
+  'النقل',
+  'التجزئة',
+  'الأغذية',
+];
+
+interface StockTableProps {
+  stocks: LiveStock[];
+  isLoading?: boolean;
+}
+
+export const StockTable = ({ stocks, isLoading }: StockTableProps) => {
   const [selectedSector, setSelectedSector] = useState('الكل');
-  const [sortField, setSortField] = useState<SortField>('aiScore');
+  const [sortField, setSortField] = useState<SortField>('changePercent');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const filteredStocks = stocks.filter(stock => 
@@ -49,23 +64,22 @@ export const StockTable = () => {
     }
   };
 
-  const getRecommendationColor = (rec: Stock['recommendation']) => {
-    switch (rec) {
-      case 'شراء قوي': return 'bg-success/20 text-success border-success/30';
-      case 'شراء': return 'bg-success/10 text-success border-success/20';
-      case 'احتفاظ': return 'bg-warning/10 text-warning border-warning/20';
-      case 'بيع': return 'bg-destructive/10 text-destructive border-destructive/20';
-      case 'بيع قوي': return 'bg-destructive/20 text-destructive border-destructive/30';
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="glass-effect rounded-2xl p-8 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">جاري تحميل الأسهم...</p>
+      </div>
+    );
+  }
 
-  const getRiskColor = (risk: Stock['riskLevel']) => {
-    switch (risk) {
-      case 'منخفض': return 'text-success';
-      case 'متوسط': return 'text-warning';
-      case 'مرتفع': return 'text-destructive';
-    }
-  };
+  if (stocks.length === 0) {
+    return (
+      <div className="glass-effect rounded-2xl p-8 text-center">
+        <p className="text-muted-foreground">لا توجد بيانات متاحة</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -127,17 +141,7 @@ export const StockTable = () => {
                   </button>
                 </th>
                 <th className="text-right p-4 font-semibold text-muted-foreground hidden lg:table-cell">
-                  التوصية
-                </th>
-                <th className="text-right p-4 font-semibold text-muted-foreground">
-                  <button 
-                    onClick={() => handleSort('aiScore')}
-                    className="flex items-center gap-2 hover:text-foreground transition-colors"
-                  >
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    نقاط AI
-                    <ArrowUpDown className="w-4 h-4" />
-                  </button>
+                  أعلى / أدنى
                 </th>
                 <th className="p-4"></th>
               </tr>
@@ -151,7 +155,7 @@ export const StockTable = () => {
                     key={stock.symbol}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ delay: index * 0.03 }}
                     className="border-b border-border/50 hover:bg-accent/50 transition-colors"
                   >
                     <td className="p-4">
@@ -180,30 +184,17 @@ export const StockTable = () => {
                     </td>
                     <td className="p-4 hidden md:table-cell">
                       <p className="text-muted-foreground">
-                        {(stock.volume / 1000000).toFixed(2)}M
+                        {stock.volume > 1000000 
+                          ? `${(stock.volume / 1000000).toFixed(2)}M`
+                          : `${(stock.volume / 1000).toFixed(0)}K`
+                        }
                       </p>
                     </td>
                     <td className="p-4 hidden lg:table-cell">
-                      <Badge 
-                        variant="outline" 
-                        className={cn("font-medium", getRecommendationColor(stock.recommendation))}
-                      >
-                        {stock.recommendation}
-                      </Badge>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full rounded-full transition-all duration-500",
-                              stock.aiScore >= 70 ? "bg-success" : 
-                              stock.aiScore >= 50 ? "bg-warning" : "bg-destructive"
-                            )}
-                            style={{ width: `${stock.aiScore}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-foreground">{stock.aiScore}</span>
+                      <div className="text-sm">
+                        <span className="text-success">{stock.high.toFixed(2)}</span>
+                        <span className="text-muted-foreground mx-1">/</span>
+                        <span className="text-destructive">{stock.low.toFixed(2)}</span>
                       </div>
                     </td>
                     <td className="p-4">

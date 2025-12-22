@@ -1,17 +1,31 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ChevronLeft } from 'lucide-react';
-import { stocks } from '@/data/stocksData';
+import { type LiveStock } from '@/lib/api/stockApi';
 import { cn } from '@/lib/utils';
 
-export const TopMovers = () => {
+interface TopMoversProps {
+  stocks: LiveStock[];
+}
+
+export const TopMovers = ({ stocks }: TopMoversProps) => {
   const topGainers = [...stocks]
+    .filter(s => s.changePercent > 0)
     .sort((a, b) => b.changePercent - a.changePercent)
     .slice(0, 5);
     
   const topLosers = [...stocks]
+    .filter(s => s.changePercent < 0)
     .sort((a, b) => a.changePercent - b.changePercent)
     .slice(0, 5);
+
+  if (stocks.length === 0) {
+    return (
+      <div className="glass-effect rounded-2xl p-6 text-center">
+        <p className="text-muted-foreground">لا توجد بيانات متاحة</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -29,29 +43,33 @@ export const TopMovers = () => {
         </div>
         
         <div className="space-y-3">
-          {topGainers.map((stock, index) => (
-            <Link 
-              key={stock.symbol} 
-              to={`/stock/${stock.symbol}`}
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/50 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-success/10 text-success text-sm font-medium">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="font-medium text-foreground">{stock.name}</p>
-                  <p className="text-sm text-muted-foreground">{stock.symbol}</p>
+          {topGainers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">لا توجد أسهم صاعدة</p>
+          ) : (
+            topGainers.map((stock, index) => (
+              <Link 
+                key={stock.symbol} 
+                to={`/stock/${stock.symbol}`}
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-success/10 text-success text-sm font-medium">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-foreground">{stock.name}</p>
+                    <p className="text-sm text-muted-foreground">{stock.symbol}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-success font-semibold">
-                  +{stock.changePercent.toFixed(2)}%
-                </span>
-                <ChevronLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </Link>
-          ))}
+                <div className="flex items-center gap-3">
+                  <span className="text-success font-semibold">
+                    +{stock.changePercent.toFixed(2)}%
+                  </span>
+                  <ChevronLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </motion.div>
 
@@ -69,29 +87,33 @@ export const TopMovers = () => {
         </div>
         
         <div className="space-y-3">
-          {topLosers.map((stock, index) => (
-            <Link 
-              key={stock.symbol} 
-              to={`/stock/${stock.symbol}`}
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/50 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-destructive/10 text-destructive text-sm font-medium">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="font-medium text-foreground">{stock.name}</p>
-                  <p className="text-sm text-muted-foreground">{stock.symbol}</p>
+          {topLosers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">لا توجد أسهم هابطة</p>
+          ) : (
+            topLosers.map((stock, index) => (
+              <Link 
+                key={stock.symbol} 
+                to={`/stock/${stock.symbol}`}
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-destructive/10 text-destructive text-sm font-medium">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-foreground">{stock.name}</p>
+                    <p className="text-sm text-muted-foreground">{stock.symbol}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-destructive font-semibold">
-                  {stock.changePercent.toFixed(2)}%
-                </span>
-                <ChevronLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </Link>
-          ))}
+                <div className="flex items-center gap-3">
+                  <span className="text-destructive font-semibold">
+                    {stock.changePercent.toFixed(2)}%
+                  </span>
+                  <ChevronLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </motion.div>
     </div>
