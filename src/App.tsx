@@ -7,6 +7,9 @@ import Index from "./pages/Index";
 import Stocks from "./pages/Stocks";
 import StockDetails from "./pages/StockDetails";
 import Recommendations from "./pages/Recommendations";
+import Auth from "./pages/Auth";
+import Favorites from "./pages/Favorites";
+import Alerts from "./pages/Alerts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +25,9 @@ const App = () => (
           <Route path="/stocks" element={<Stocks />} />
           <Route path="/stock/:symbol" element={<StockDetails />} />
           <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/alerts" element={<Alerts />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
