@@ -38,6 +38,12 @@ serve(async (req) => {
       4. تحليل نقاط القوة والضعف
       5. تحليل المؤشرات الفنية
       6. تقييم المخاطر المحتملة
+
+      ملاحظة مهمة: قد تكون بعض البيانات المالية غير متوفرة (مثل P/E و EPS). في هذه الحالة:
+      - ركز على التحليل الفني وحركة السعر والأحجام
+      - استخدم نطاق 52 أسبوع لتحديد الاتجاه
+      - لا تذكر عدم توفر البيانات كنقطة ضعف رئيسية
+      - قدم تحليلاً مفيداً بناءً على البيانات المتاحة
       
       يجب أن تكون إجابتك باللغة العربية وبتنسيق JSON كالتالي:
       {
@@ -68,6 +74,20 @@ serve(async (req) => {
         "volumeAnalysis": "تحليل مختصر لحجم التداول",
         "priceAction": "تحليل مختصر لحركة السعر"
       }`;
+
+      // تحديد البيانات المتوفرة
+      const hasPE = stockData.pe && stockData.pe > 0;
+      const hasEPS = stockData.eps && stockData.eps > 0;
+      const hasMarketCap = stockData.marketCap && stockData.marketCap > 0;
+      const has52WeekData = stockData.fiftyTwoWeekHigh && stockData.fiftyTwoWeekLow;
+      
+      // حساب موقع السعر ضمن نطاق 52 أسبوع
+      let pricePosition = '';
+      if (has52WeekData) {
+        const range = stockData.fiftyTwoWeekHigh - stockData.fiftyTwoWeekLow;
+        const positionPercent = ((stockData.price - stockData.fiftyTwoWeekLow) / range * 100).toFixed(1);
+        pricePosition = `موقع السعر ضمن نطاق 52 أسبوع: ${positionPercent}% (قريب من ${parseFloat(positionPercent) > 50 ? 'الأعلى' : 'الأدنى'})`;
+      }
       
       userPrompt = `قم بتحليل احترافي شامل للسهم التالي وقدم توصيتك المفصلة:
       
@@ -91,11 +111,14 @@ serve(async (req) => {
       === نطاق 52 أسبوع ===
       أعلى سعر: ${stockData.fiftyTwoWeekHigh || 'غير متاح'} ريال
       أدنى سعر: ${stockData.fiftyTwoWeekLow || 'غير متاح'} ريال
+      ${pricePosition}
       
       === المؤشرات المالية ===
-      مكرر الربحية (P/E): ${stockData.pe || 'غير متاح'}
-      ربحية السهم (EPS): ${stockData.eps || 'غير متاح'}
-      القيمة السوقية: ${stockData.marketCap ? (stockData.marketCap / 1000000000).toFixed(2) + ' مليار ريال' : 'غير متاح'}
+      ${hasPE ? `مكرر الربحية (P/E): ${stockData.pe}` : ''}
+      ${hasEPS ? `ربحية السهم (EPS): ${stockData.eps}` : ''}
+      ${hasMarketCap ? `القيمة السوقية: ${(stockData.marketCap / 1000000000).toFixed(2)} مليار ريال` : ''}
+      
+      ${!hasPE && !hasEPS ? 'ملاحظة: البيانات المالية الأساسية غير متوفرة، يرجى التركيز على التحليل الفني وحركة السعر.' : ''}
       
       قدم تحليلك المهني الشامل بتنسيق JSON المطلوب. كن دقيقاً في تحديد الأسعار المستهدفة ومستويات الدعم والمقاومة بناءً على البيانات المتاحة.`;
     } else if (analysisType === 'technical') {
