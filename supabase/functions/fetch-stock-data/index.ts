@@ -179,6 +179,65 @@ serve(async (req) => {
       }
     }
 
+    // Fetch earnings history (quarterly/annual EPS and P/E)
+    if (action === 'earnings' || action === 'all') {
+      try {
+        const earningsUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yahooSymbol}?modules=earnings,earningsHistory,earningsTrend`;
+        console.log(`Calling Yahoo Finance Earnings: ${earningsUrl}`);
+
+        const earningsResponse = await fetch(earningsUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+
+        if (earningsResponse.ok) {
+          const earningsData = await earningsResponse.json();
+          const result = earningsData?.quoteSummary?.result?.[0];
+          
+          const earningsHistory = result?.earningsHistory?.history || [];
+          const earningsTrend = result?.earningsTrend?.trend || [];
+          const quarterlyEarnings = result?.earnings?.financialsChart?.quarterly || [];
+          const yearlyEarnings = result?.earnings?.financialsChart?.yearly || [];
+
+          const earnings = {
+            quarterly: earningsHistory.map((item: any) => ({
+              date: item?.quarter?.fmt || '',
+              epsActual: item?.epsActual?.raw ?? null,
+              epsEstimate: item?.epsEstimate?.raw ?? null,
+              epsDifference: item?.epsDifference?.raw ?? null,
+              surprisePercent: item?.surprisePercent?.raw ?? null,
+            })).filter((item: any) => item.date),
+            
+            annual: yearlyEarnings.map((item: any) => ({
+              date: item?.date?.toString() || '',
+              earnings: item?.earnings?.raw ?? null,
+              revenue: item?.revenue?.raw ?? null,
+            })).filter((item: any) => item.date),
+
+            trend: earningsTrend.map((item: any) => ({
+              period: item?.period || '',
+              growth: item?.growth?.raw ?? null,
+              earningsEstimate: item?.earningsEstimate?.avg?.raw ?? null,
+              revenueEstimate: item?.revenueEstimate?.avg?.raw ?? null,
+            })),
+          };
+
+          console.log('Earnings data:', JSON.stringify(earnings));
+
+          if (action === 'all' && data) {
+            data = { ...data, earnings };
+          } else if (action === 'earnings') {
+            data = { earnings };
+          }
+        } else {
+          console.log(`Yahoo Finance Earnings failed: ${earningsResponse.status}`);
+        }
+      } catch (earningsError) {
+        console.log('Could not fetch earnings data:', earningsError);
+      }
+    }
+
     console.log('Returning data for:', symbol);
 
     return new Response(
