@@ -8,6 +8,8 @@ import { StockChart } from '@/components/stock/StockChart';
 import { TechnicalIndicators } from '@/components/stock/TechnicalIndicators';
 import { AIRecommendation } from '@/components/stock/AIRecommendation';
 import { EarningsHistory } from '@/components/stock/EarningsHistory';
+import { FavoriteButton } from '@/components/stock/FavoriteButton';
+import { PriceAlertDialog } from '@/components/stock/PriceAlertDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStockData, useRefreshStock } from '@/hooks/useStockData';
@@ -108,6 +110,18 @@ const StockDetails = () => {
           </motion.div>
 
           <div className="flex items-center gap-3">
+            <FavoriteButton 
+              stockSymbol={stock.symbol} 
+              stockName={stock.name}
+              showLabel
+            />
+            
+            <PriceAlertDialog 
+              stockSymbol={stock.symbol}
+              stockName={stock.name}
+              currentPrice={stock.price}
+            />
+
             <Badge 
               variant="outline" 
               className={isLive ? "text-success border-success/30 bg-success/10" : "text-muted-foreground"}
