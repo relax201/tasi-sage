@@ -7,71 +7,75 @@ import { StockInfo } from '@/components/stock/StockInfo';
 import { StockChart } from '@/components/stock/StockChart';
 import { TechnicalIndicators } from '@/components/stock/TechnicalIndicators';
 import { AIRecommendation } from '@/components/stock/AIRecommendation';
-import { stocks, type Stock } from '@/data/stocksData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useStockQuote, useRefreshStockData } from '@/hooks/useStockData';
-import { useToast } from '@/hooks/use-toast';
+import { useStockData, useRefreshStock } from '@/hooks/useStockData';
 
 const StockDetails = () => {
   const { symbol } = useParams<{ symbol: string }>();
-  const { toast } = useToast();
-  const baseStock = stocks.find(s => s.symbol === symbol);
   
   // Fetch live data
-  const { data: liveQuote, isLoading: isLoadingQuote, error: quoteError, refetch } = useStockQuote(symbol || '');
-  const { refresh, isRefreshing } = useRefreshStockData();
-  
-  const [liveStock, setLiveStock] = useState<Stock | null>(null);
-  const [isLive, setIsLive] = useState(false);
-
-  // Update stock with live data when available
-  useEffect(() => {
-    if (liveQuote && baseStock) {
-      setLiveStock({
-        ...baseStock,
-        price: liveQuote.price || baseStock.price,
-        change: liveQuote.change || baseStock.change,
-        changePercent: liveQuote.changePercent || baseStock.changePercent,
-        high: liveQuote.high || baseStock.high,
-        low: liveQuote.low || baseStock.low,
-        volume: liveQuote.volume || baseStock.volume,
-      });
-      setIsLive(true);
-    }
-  }, [liveQuote, baseStock]);
+  const { data: stockData, isLoading, error, refetch } = useStockData(symbol || '');
+  const { refresh, isRefreshing } = useRefreshStock();
 
   const handleRefresh = async () => {
     if (symbol) {
-      const newData = await refresh(symbol);
-      if (newData && baseStock) {
-        setLiveStock({
-          ...baseStock,
-          price: newData.price || baseStock.price,
-          change: newData.change || baseStock.change,
-          changePercent: newData.changePercent || baseStock.changePercent,
-          high: newData.high || baseStock.high,
-          low: newData.low || baseStock.low,
-          volume: newData.volume || baseStock.volume,
-        });
-        setIsLive(true);
-      }
+      await refresh(symbol);
+      refetch();
     }
   };
 
-  // Use live stock data if available, otherwise fallback to base stock
-  const stock = liveStock || baseStock;
+  // Build stock object from live data
+  const stock = stockData ? {
+    symbol: symbol || '',
+    name: stockData.name || symbol,
+    sector: stockData.sector || 'غير محدد',
+    price: stockData.price || 0,
+    change: stockData.change || 0,
+    changePercent: stockData.changePercent || 0,
+    volume: stockData.volume || 0,
+    high: stockData.high || 0,
+    low: stockData.low || 0,
+    open: stockData.open || 0,
+    previousClose: stockData.previousClose || 0,
+    marketCap: stockData.marketCap || 0,
+    pe: 0, // Will be calculated or fetched separately
+    eps: 0,
+    recommendation: 'احتفاظ' as const,
+    riskLevel: 'متوسط' as const,
+    aiScore: 50,
+    history: stockData.history || [],
+  } : null;
 
-  if (!stock) {
+  const isLive = !!stockData && stockData.price > 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">جاري تحميل بيانات السهم...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stock) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">السهم غير موجود</h1>
-          <p className="text-muted-foreground mb-8">لم يتم العثور على السهم المطلوب</p>
-          <Link to="/">
-            <Button>العودة للرئيسية</Button>
-          </Link>
+          <h1 className="text-2xl font-bold text-foreground mb-4">تعذر تحميل بيانات السهم</h1>
+          <p className="text-muted-foreground mb-8">
+            {error instanceof Error ? error.message : 'حدث خطأ أثناء جلب البيانات'}
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => refetch()}>إعادة المحاولة</Button>
+            <Link to="/">
+              <Button variant="outline">العودة للرئيسية</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -103,7 +107,6 @@ const StockDetails = () => {
           </motion.div>
 
           <div className="flex items-center gap-3">
-            {/* Live Status Badge */}
             <Badge 
               variant="outline" 
               className={isLive ? "text-success border-success/30 bg-success/10" : "text-muted-foreground"}
@@ -116,20 +119,19 @@ const StockDetails = () => {
               ) : (
                 <>
                   <WifiOff className="w-3 h-3 ml-1" />
-                  بيانات تجريبية
+                  غير متصل
                 </>
               )}
             </Badge>
 
-            {/* Refresh Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing || isLoadingQuote}
+              disabled={isRefreshing}
               className="gap-2"
             >
-              {isRefreshing || isLoadingQuote ? (
+              {isRefreshing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   جاري التحديث...
@@ -137,35 +139,22 @@ const StockDetails = () => {
               ) : (
                 <>
                   <RefreshCw className="w-4 h-4" />
-                  تحديث السعر
+                  تحديث
                 </>
               )}
             </Button>
           </div>
         </div>
 
-        {/* API Error Notice */}
-        {quoteError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30"
-          >
-            <p className="text-sm text-warning">
-              ⚠️ تعذر جلب البيانات الحية. يتم عرض البيانات التجريبية حالياً. 
-              <span className="text-muted-foreground mr-2">
-                (تأكد من صحة مفتاح API وأن الخدمة متاحة)
-              </span>
-            </p>
-          </motion.div>
-        )}
-
         <div className="space-y-8">
           {/* Stock Info */}
           <StockInfo stock={stock} />
 
           {/* Price Chart */}
-          <StockChart basePrice={stock.price} symbol={stock.symbol} />
+          <StockChart 
+            basePrice={stock.price} 
+            symbol={stock.symbol}
+          />
 
           {/* AI Recommendation */}
           <AIRecommendation stock={stock} />

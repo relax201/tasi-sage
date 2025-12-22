@@ -5,59 +5,116 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Yahoo Finance API for Saudi stocks (TASI)
+// Saudi stock symbols use .SR suffix (e.g., 2222.SR for Aramco)
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { symbol, action } = await req.json();
-    const apiKey = Deno.env.get('STOCK_API_KEY');
-
-    if (!apiKey) {
-      console.error('STOCK_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Fetching stock data for symbol: ${symbol}, action: ${action}`);
-
-    let url = '';
     
-    // Support multiple API providers - adjust based on your API
-    // Example using Alpha Vantage format
-    if (action === 'quote') {
-      url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}.SAU&apikey=${apiKey}`;
-    } else if (action === 'daily') {
-      url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}.SAU&apikey=${apiKey}`;
-    } else if (action === 'intraday') {
-      url = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}.SAU&interval=5min&apikey=${apiKey}`;
-    } else {
-      // Default to quote
-      url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}.SAU&apikey=${apiKey}`;
+    // Convert to Yahoo Finance format for Saudi stocks
+    const yahooSymbol = `${symbol}.SR`;
+    
+    console.log(`Fetching stock data for: ${yahooSymbol}, action: ${action}`);
+
+    let data;
+
+    if (action === 'quote' || action === 'all') {
+      // Get real-time quote from Yahoo Finance
+      const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`;
+      
+      console.log(`Calling Yahoo Finance: ${quoteUrl}`);
+      
+      const response = await fetch(quoteUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Yahoo Finance API error: ${response.status}`);
+      }
+      
+      const yahooData = await response.json();
+      const result = yahooData?.chart?.result?.[0];
+      
+      if (!result) {
+        throw new Error('No data found for this symbol');
+      }
+      
+      const meta = result.meta;
+      const quote = result.indicators?.quote?.[0];
+      const timestamps = result.timestamp;
+      
+      // Get the latest values
+      const lastIndex = timestamps ? timestamps.length - 1 : 0;
+      
+      data = {
+        symbol: symbol,
+        name: meta?.shortName || meta?.longName || symbol,
+        currency: meta?.currency || 'SAR',
+        price: meta?.regularMarketPrice || 0,
+        previousClose: meta?.chartPreviousClose || meta?.previousClose || 0,
+        change: (meta?.regularMarketPrice || 0) - (meta?.chartPreviousClose || 0),
+        changePercent: meta?.regularMarketPrice && meta?.chartPreviousClose 
+          ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100) 
+          : 0,
+        high: quote?.high?.[lastIndex] || meta?.regularMarketDayHigh || 0,
+        low: quote?.low?.[lastIndex] || meta?.regularMarketDayLow || 0,
+        open: quote?.open?.[lastIndex] || meta?.regularMarketOpen || 0,
+        volume: quote?.volume?.[lastIndex] || meta?.regularMarketVolume || 0,
+        marketCap: meta?.marketCap || 0,
+        fiftyTwoWeekHigh: meta?.fiftyTwoWeekHigh || 0,
+        fiftyTwoWeekLow: meta?.fiftyTwoWeekLow || 0,
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log('Quote data:', JSON.stringify(data));
     }
 
-    console.log(`Calling API: ${url.replace(apiKey, '***')}`);
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    console.log('API Response received:', JSON.stringify(data).substring(0, 200));
-
-    // Check for API errors
-    if (data['Error Message'] || data['Note']) {
-      console.error('API Error:', data['Error Message'] || data['Note']);
-      return new Response(
-        JSON.stringify({ 
-          error: data['Error Message'] || 'API rate limit reached. Please try again later.',
-          rawData: data 
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (action === 'history' || action === 'all') {
+      // Get historical data
+      const historyUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1mo`;
+      
+      const response = await fetch(historyUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Yahoo Finance API error: ${response.status}`);
+      }
+      
+      const yahooData = await response.json();
+      const result = yahooData?.chart?.result?.[0];
+      
+      if (result) {
+        const timestamps = result.timestamp || [];
+        const quote = result.indicators?.quote?.[0] || {};
+        
+        const history = timestamps.map((ts: number, i: number) => ({
+          date: new Date(ts * 1000).toISOString().split('T')[0],
+          open: quote.open?.[i] || 0,
+          high: quote.high?.[i] || 0,
+          low: quote.low?.[i] || 0,
+          close: quote.close?.[i] || 0,
+          volume: quote.volume?.[i] || 0,
+        })).filter((item: any) => item.close > 0);
+        
+        if (action === 'all') {
+          data = { ...data, history };
+        } else {
+          data = { history };
+        }
+      }
     }
+
+    console.log('Returning data for:', symbol);
 
     return new Response(
       JSON.stringify({ success: true, data }),
@@ -68,7 +125,7 @@ serve(async (req) => {
     console.error('Error fetching stock data:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
