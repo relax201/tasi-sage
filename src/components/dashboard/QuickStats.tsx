@@ -23,14 +23,18 @@ export const QuickStats = ({ stocks }: QuickStatsProps) => {
       value: gainers.toString(),
       change: `+${gainers}`,
       icon: TrendingUp,
-      color: 'success',
+      iconBg: 'bg-success/10',
+      iconColor: 'text-success',
+      changeColor: 'text-success',
     },
     {
       label: 'الأسهم الهابطة',
       value: losers.toString(),
       change: `-${losers}`,
       icon: TrendingDown,
-      color: 'destructive',
+      iconBg: 'bg-destructive/10',
+      iconColor: 'text-destructive',
+      changeColor: 'text-destructive',
     },
     {
       label: 'حجم التداول',
@@ -39,14 +43,18 @@ export const QuickStats = ({ stocks }: QuickStatsProps) => {
         : `${(totalVolume / 1000000).toFixed(1)}M`,
       change: 'إجمالي',
       icon: BarChart3,
-      color: 'primary',
+      iconBg: 'bg-primary/10',
+      iconColor: 'text-primary',
+      changeColor: 'text-primary',
     },
     {
       label: 'بدون تغيير',
       value: unchanged.toString(),
       change: '~',
       icon: Activity,
-      color: 'warning',
+      iconBg: 'bg-warning/10',
+      iconColor: 'text-warning',
+      changeColor: 'text-warning',
     },
   ];
 
@@ -61,10 +69,10 @@ export const QuickStats = ({ stocks }: QuickStatsProps) => {
           className="glass-effect rounded-xl p-4 hover:border-primary/30 transition-all duration-300"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className={`p-2 rounded-lg bg-${stat.color}/10`}>
-              <stat.icon className={`w-5 h-5 text-${stat.color}`} />
+            <div className={`p-2 rounded-lg ${stat.iconBg}`}>
+              <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
             </div>
-            <span className={`text-xs font-medium text-${stat.color}`}>
+            <span className={`text-xs font-medium ${stat.changeColor}`}>
               {stat.change}
             </span>
           </div>
