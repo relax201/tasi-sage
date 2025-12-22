@@ -53,37 +53,69 @@ serve(async (req) => {
       // Get the latest values
       const lastIndex = timestamps ? timestamps.length - 1 : 0;
 
-      // Fetch fundamental data from quoteSummary endpoint
+      // Fetch fundamental data (market cap, P/E, EPS)
       let marketCap = 0;
       let peRatio = 0;
       let eps = 0;
-      
+
+      // 1) Try the v7 quote endpoint (often more reliable than quoteSummary)
       try {
-        const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yahooSymbol}?modules=price,defaultKeyStatistics,summaryDetail`;
-        console.log(`Calling Yahoo Finance Summary: ${summaryUrl}`);
-        
-        const summaryResponse = await fetch(summaryUrl, {
+        const quoteApiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbol}`;
+        console.log(`Calling Yahoo Finance Quote: ${quoteApiUrl}`);
+
+        const quoteResp = await fetch(quoteApiUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           }
         });
-        
-        if (summaryResponse.ok) {
-          const summaryData = await summaryResponse.json();
-          const priceData = summaryData?.quoteSummary?.result?.[0]?.price;
-          const statsData = summaryData?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
-          const detailData = summaryData?.quoteSummary?.result?.[0]?.summaryDetail;
-          
-          marketCap = priceData?.marketCap?.raw || detailData?.marketCap?.raw || 0;
-          peRatio = detailData?.trailingPE?.raw || priceData?.trailingPE?.raw || statsData?.trailingPE?.raw || 0;
-          eps = statsData?.trailingEps?.raw || detailData?.trailingEps?.raw || 0;
-          
-          console.log(`Fundamental data - MarketCap: ${marketCap}, PE: ${peRatio}, EPS: ${eps}`);
+
+        if (quoteResp.ok) {
+          const quoteJson = await quoteResp.json();
+          const q = quoteJson?.quoteResponse?.result?.[0];
+
+          marketCap = q?.marketCap ?? 0;
+          peRatio = q?.trailingPE ?? 0;
+          eps = q?.epsTrailingTwelveMonths ?? 0;
+
+          console.log(`Fundamentals (v7) - MarketCap: ${marketCap}, PE: ${peRatio}, EPS: ${eps}`);
+        } else {
+          console.log(`Yahoo Quote endpoint failed: ${quoteResp.status}`);
         }
-      } catch (summaryError) {
-        console.log('Could not fetch summary data, using defaults:', summaryError);
+      } catch (e) {
+        console.log('Could not fetch fundamentals from v7 quote:', e);
       }
-      
+
+      // 2) Fallback to quoteSummary if still missing
+      if (marketCap === 0 && peRatio === 0 && eps === 0) {
+        try {
+          const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${yahooSymbol}?modules=price,defaultKeyStatistics,summaryDetail`;
+          console.log(`Calling Yahoo Finance Summary: ${summaryUrl}`);
+
+          const summaryResponse = await fetch(summaryUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            const priceData = summaryData?.quoteSummary?.result?.[0]?.price;
+            const statsData = summaryData?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+            const detailData = summaryData?.quoteSummary?.result?.[0]?.summaryDetail;
+
+            marketCap = priceData?.marketCap?.raw || detailData?.marketCap?.raw || 0;
+            peRatio = detailData?.trailingPE?.raw || priceData?.trailingPE?.raw || statsData?.trailingPE?.raw || 0;
+            eps = statsData?.trailingEps?.raw || detailData?.trailingEps?.raw || 0;
+
+            console.log(`Fundamentals (summary) - MarketCap: ${marketCap}, PE: ${peRatio}, EPS: ${eps}`);
+          } else {
+            console.log(`Yahoo quoteSummary failed: ${summaryResponse.status}`);
+          }
+        } catch (summaryError) {
+          console.log('Could not fetch summary data, using defaults:', summaryError);
+        }
+      }
+
       data = {
         symbol: symbol,
         name: meta?.shortName || meta?.longName || symbol,

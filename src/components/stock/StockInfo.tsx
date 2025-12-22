@@ -16,9 +16,12 @@ export const StockInfo = ({ stock }: StockInfoProps) => {
     { label: 'الأدنى', value: `${stock.low.toFixed(2)} ر.س`, highlight: 'destructive' },
     { label: 'الإغلاق السابق', value: `${stock.previousClose.toFixed(2)} ر.س` },
     { label: 'الحجم', value: `${(stock.volume / 1000000).toFixed(2)}M` },
-    { label: 'القيمة السوقية', value: `${(stock.marketCap / 1000000000).toFixed(1)}B ر.س` },
-    { label: 'مكرر الربحية', value: stock.pe.toFixed(2) },
-    { label: 'ربحية السهم', value: `${stock.eps.toFixed(2)} ر.س` },
+    {
+      label: 'القيمة السوقية',
+      value: stock.marketCap > 0 ? `${(stock.marketCap / 1000000000).toFixed(1)}B ر.س` : 'غير متوفر',
+    },
+    { label: 'مكرر الربحية', value: stock.pe > 0 ? stock.pe.toFixed(2) : 'غير متوفر' },
+    { label: 'ربحية السهم', value: stock.eps !== 0 ? `${stock.eps.toFixed(2)} ر.س` : 'غير متوفر' },
   ];
 
   return (
