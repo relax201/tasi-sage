@@ -39,8 +39,8 @@ const StockDetails = () => {
     open: stockData.open || 0,
     previousClose: stockData.previousClose || 0,
     marketCap: stockData.marketCap || 0,
-    pe: 0, // Will be calculated or fetched separately
-    eps: 0,
+    pe: stockData.peRatio ?? stockData.pe ?? 0,
+    eps: stockData.eps ?? 0,
     recommendation: 'احتفاظ' as const,
     riskLevel: 'متوسط' as const,
     aiScore: 50,
