@@ -7,6 +7,7 @@ import { StockInfo } from '@/components/stock/StockInfo';
 import { StockChart } from '@/components/stock/StockChart';
 import { TechnicalIndicators } from '@/components/stock/TechnicalIndicators';
 import { AIRecommendation } from '@/components/stock/AIRecommendation';
+import { EarningsHistory } from '@/components/stock/EarningsHistory';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStockData, useRefreshStock } from '@/hooks/useStockData';
@@ -158,6 +159,12 @@ const StockDetails = () => {
 
           {/* AI Recommendation */}
           <AIRecommendation stock={stock} />
+
+          {/* Earnings History */}
+          <EarningsHistory 
+            earnings={stockData?.earnings} 
+            currentPrice={stock.price}
+          />
 
           {/* Technical Indicators */}
           <section>
