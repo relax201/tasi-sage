@@ -6,14 +6,24 @@ import { QuickStats } from '@/components/dashboard/QuickStats';
 import { StockTable } from '@/components/dashboard/StockTable';
 import { TopMovers } from '@/components/dashboard/TopMovers';
 import { useAllStocks, useMarketIndices } from '@/hooks/useStockData';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
 
 const Index = () => {
   const { data: stocks, isLoading: stocksLoading, error: stocksError, refetch: refetchStocks } = useAllStocks();
   const { data: indices, isLoading: indicesLoading, error: indicesError, refetch: refetchIndices } = useMarketIndices();
+  const { checkAlertsAgainstPrices } = useNotifications();
 
   const isLoading = stocksLoading || indicesLoading;
+
+  // Check alerts whenever stocks data is updated
+  useEffect(() => {
+    if (stocks && stocks.length > 0) {
+      checkAlertsAgainstPrices(stocks);
+    }
+  }, [stocks, checkAlertsAgainstPrices]);
   const hasError = stocksError || indicesError;
 
   const handleRefresh = () => {

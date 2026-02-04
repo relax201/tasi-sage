@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +21,7 @@ export const usePriceAlerts = () => {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -37,11 +37,11 @@ export const usePriceAlerts = () => {
       setAlerts((data || []) as PriceAlert[]);
     }
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchAlerts();
-  }, [user]);
+  }, [fetchAlerts]);
 
   const createAlert = async (
     stockSymbol: string, 

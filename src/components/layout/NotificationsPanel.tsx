@@ -9,84 +9,17 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  type: 'price_up' | 'price_down' | 'alert' | 'info';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  symbol?: string;
-}
-
-const initialNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'price_up',
-    title: 'ارتفاع سابك',
-    message: 'ارتفع سهم سابك بنسبة 2.63% ليصل إلى 89.70 ريال',
-    time: 'منذ 5 دقائق',
-    read: false,
-    symbol: '2010'
-  },
-  {
-    id: '2',
-    type: 'price_down',
-    title: 'انخفاض البحري',
-    message: 'انخفض سهم البحري بنسبة 3.26% ليصل إلى 35.60 ريال',
-    time: 'منذ 15 دقيقة',
-    read: false,
-    symbol: '4030'
-  },
-  {
-    id: '3',
-    type: 'alert',
-    title: 'تنبيه مهم',
-    message: 'سهم كيان وصل إلى مستوى المقاومة عند 12.60 ريال',
-    time: 'منذ 30 دقيقة',
-    read: false,
-    symbol: '2350'
-  },
-  {
-    id: '4',
-    type: 'info',
-    title: 'توصية جديدة',
-    message: 'توصية شراء قوي على سهم معادن بناءً على التحليل الفني',
-    time: 'منذ ساعة',
-    read: true,
-    symbol: '1211'
-  },
-  {
-    id: '5',
-    type: 'price_up',
-    title: 'ارتفاع الراجحي',
-    message: 'ارتفع سهم الراجحي بنسبة 1.27% ليصل إلى 95.50 ريال',
-    time: 'منذ ساعتين',
-    read: true,
-    symbol: '1120'
-  },
-];
+import { useNotifications, type Notification } from '@/hooks/useNotifications';
 
 export const NotificationsPanel = () => {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    removeNotification 
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
 
   const getIcon = (type: Notification['type']) => {
     switch (type) {

@@ -109,7 +109,7 @@ export const fetchMarketIndices = async (): Promise<MarketIndex[]> => {
 };
 
 // Fetch single stock data
-export const fetchStockData = async (symbol: string, action: string = 'all'): Promise<any> => {
+export const fetchStockData = async (symbol: string, action: string = 'all'): Promise<LiveStock> => {
   try {
     const { data, error } = await supabase.functions.invoke('fetch-stock-data', {
       body: { symbol, action }
@@ -132,7 +132,7 @@ export const fetchStockData = async (symbol: string, action: string = 'all'): Pr
 };
 
 // Get AI analysis and recommendations
-export const getAIAnalysis = async (stockData: any, analysisType: 'recommendation' | 'technical' | 'summary' = 'recommendation'): Promise<AIAnalysis | null> => {
+export const getAIAnalysis = async (stockData: LiveStock, analysisType: 'recommendation' | 'technical' | 'summary' = 'recommendation'): Promise<AIAnalysis | null> => {
   try {
     const { data, error } = await supabase.functions.invoke('ai-stock-analysis', {
       body: { stockData, analysisType }
