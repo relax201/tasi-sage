@@ -13,13 +13,22 @@ import { PriceAlertDialog } from '@/components/stock/PriceAlertDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStockData, useRefreshStock } from '@/hooks/useStockData';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const StockDetails = () => {
   const { symbol } = useParams<{ symbol: string }>();
+  const { checkAlertsAgainstPrices } = useNotifications();
   
   // Fetch live data
   const { data: stockData, isLoading, error, refetch } = useStockData(symbol || '');
   const { refresh, isRefreshing } = useRefreshStock();
+
+  // Check alerts whenever stock data is updated
+  useEffect(() => {
+    if (stockData && stockData.price > 0) {
+      checkAlertsAgainstPrices([stockData]);
+    }
+  }, [stockData, checkAlertsAgainstPrices]);
 
   const handleRefresh = async () => {
     if (symbol) {

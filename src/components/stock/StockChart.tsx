@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -10,10 +8,15 @@ import {
   ResponsiveContainer,
   Line,
   ComposedChart,
+  Area,
+  type TooltipProps,
 } from 'recharts';
+import {
+  NameType,
+  ValueType,
+} from 'recharts/types/component/DefaultTooltipContent';
 import { generateIndicatorData } from '@/data/stocksData';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 interface StockChartProps {
   basePrice: number;
@@ -34,7 +37,7 @@ export const StockChart = ({ basePrice, symbol }: StockChartProps) => {
   
   const data = generateIndicatorData(basePrice, selectedTimeframe);
   
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
     if (active && payload && payload.length) {
       return (
         <div className="glass-effect rounded-lg p-3 border border-border">
@@ -42,12 +45,16 @@ export const StockChart = ({ basePrice, symbol }: StockChartProps) => {
           <div className="space-y-1">
             <p className="text-sm">
               <span className="text-muted-foreground">الإغلاق: </span>
-              <span className="font-semibold text-foreground">{payload[0]?.value?.toFixed(2)} ر.س</span>
+              <span className="font-semibold text-foreground">
+                {typeof payload[0]?.value === 'number' ? payload[0].value.toFixed(2) : payload[0]?.value} ر.س
+              </span>
             </p>
             {showIndicators && payload[1] && (
               <p className="text-sm">
                 <span className="text-muted-foreground">SMA20: </span>
-                <span className="font-semibold text-primary">{payload[1]?.value?.toFixed(2)}</span>
+                <span className="font-semibold text-primary">
+                  {typeof payload[1]?.value === 'number' ? payload[1].value.toFixed(2) : payload[1]?.value}
+                </span>
               </p>
             )}
           </div>
@@ -64,7 +71,7 @@ export const StockChart = ({ basePrice, symbol }: StockChartProps) => {
       className="glass-effect rounded-2xl p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <h3 className="text-lg font-semibold text-foreground">الرسم البياني للسعر</h3>
+        <h3 className="text-lg font-semibold text-foreground">الرسم البياني للسعر - {symbol}</h3>
         
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">

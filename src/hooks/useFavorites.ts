@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -16,7 +16,7 @@ export const useFavorites = () => {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchFavorites = async () => {
+  const fetchFavorites = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -32,11 +32,11 @@ export const useFavorites = () => {
       setFavorites(data || []);
     }
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchFavorites();
-  }, [user]);
+  }, [fetchFavorites]);
 
   const addFavorite = async (stockSymbol: string, stockName: string) => {
     if (!user) {

@@ -45,7 +45,7 @@ export const useStockData = (symbol: string) => {
 };
 
 // Hook for AI analysis
-export const useAIAnalysis = (stockData: any) => {
+export const useAIAnalysis = (stockData: LiveStock | null) => {
   const { toast } = useToast();
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,10 +58,11 @@ export const useAIAnalysis = (stockData: any) => {
       const result = await getAIAnalysis(stockData, type);
       setAnalysis(result);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'فشل في الحصول على تحليل الذكاء الاصطناعي';
       toast({
         title: 'خطأ في التحليل',
-        description: error.message || 'فشل في الحصول على تحليل الذكاء الاصطناعي',
+        description: errorMessage,
         variant: 'destructive',
       });
       return null;
@@ -91,10 +92,11 @@ export const useRefreshStock = () => {
         description: 'تم تحديث بيانات السهم بنجاح',
       });
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'فشل تحديث البيانات';
       toast({
         title: 'خطأ في التحديث',
-        description: error.message || 'فشل تحديث البيانات',
+        description: errorMessage,
         variant: 'destructive',
       });
       return null;
