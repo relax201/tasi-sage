@@ -23,7 +23,7 @@ serve(async (req) => {
 
     // Fetch quote data
     if (action === 'quote' || action === 'all') {
-      const quoteUrl = `${SAHMK_BASE}/quote/${symbol}/`;
+      const quoteUrl = `${SAHMK_BASE}/quotes/?symbols=${symbol}`;
       console.log(`Calling SAHMK Quote: ${quoteUrl}`);
 
       const response = await fetch(quoteUrl, {
@@ -35,51 +35,48 @@ serve(async (req) => {
         throw new Error(`SAHMK quote error ${response.status}: ${errText}`);
       }
 
-      const q = await response.json();
-      // Handle nested response (e.g. { data: {...} } or flat)
-      const quote = q.data || q;
+      const apiData = await response.json();
+      const quotes = apiData?.quotes || apiData?.data || [];
+      const quoteArray = Array.isArray(quotes) ? quotes : Object.values(quotes);
+      const quote = quoteArray.find((q: any) => q.symbol?.toString() === symbol) || quoteArray[0] || {};
 
-      const price = quote.last_price ?? quote.close ?? quote.price ?? 0;
-      const prevClose = quote.previous_close ?? quote.prev_close ?? price;
-      const change = quote.change ?? (price - prevClose);
-      const changePercent = quote.change_percent ?? quote.percent_change ?? (prevClose > 0 ? (change / prevClose) * 100 : 0);
+      const price = quote.price ?? quote.last_price ?? quote.close ?? 0;
+      const change = quote.change ?? 0;
+      const changePercent = quote.change_percent ?? quote.percent_change ?? 0;
+      const previousClose = price - change;
 
       data = {
         symbol,
         name: quote.name || quote.company_name || symbol,
         currency: 'SAR',
         price,
-        previousClose: prevClose,
+        previousClose,
         change,
         changePercent,
-        high: quote.high ?? quote.day_high ?? 0,
-        low: quote.low ?? quote.day_low ?? 0,
-        open: quote.open ?? 0,
+        high: quote.high ?? quote.day_high ?? price,
+        low: quote.low ?? quote.day_low ?? price,
+        open: quote.open ?? price,
         volume: quote.volume ?? 0,
-        marketCap: quote.market_cap ?? quote.market_capitalization ?? 0,
-        peRatio: quote.pe_ratio ?? quote.pe ?? quote.trailing_pe ?? 0,
-        eps: quote.eps ?? quote.earnings_per_share ?? 0,
-        fiftyTwoWeekHigh: quote.week_52_high ?? quote.fifty_two_week_high ?? 0,
-        fiftyTwoWeekLow: quote.week_52_low ?? quote.fifty_two_week_low ?? 0,
+        marketCap: quote.market_cap ?? 0,
+        peRatio: quote.pe_ratio ?? quote.pe ?? 0,
+        eps: quote.eps ?? 0,
+        fiftyTwoWeekHigh: quote.week_52_high ?? 0,
+        fiftyTwoWeekLow: quote.week_52_low ?? 0,
         timestamp: new Date().toISOString(),
       };
-
-      console.log('Quote data:', JSON.stringify(data));
     }
 
     // Fetch historical data
     if (action === 'history' || action === 'all') {
       try {
         const historyUrl = `${SAHMK_BASE}/history/${symbol}/`;
-        console.log(`Calling SAHMK History: ${historyUrl}`);
-
         const response = await fetch(historyUrl, {
           headers: { 'X-API-Key': apiKey }
         });
 
         if (response.ok) {
           const histData = await response.json();
-          const rawHistory = histData.data || histData.results || histData || [];
+          const rawHistory = histData.data || histData.history || histData.results || histData || [];
           const histArray = Array.isArray(rawHistory) ? rawHistory : [];
 
           const history = histArray.map((item: any) => ({
@@ -87,7 +84,7 @@ serve(async (req) => {
             open: item.open ?? 0,
             high: item.high ?? 0,
             low: item.low ?? 0,
-            close: item.close ?? item.last_price ?? 0,
+            close: item.close ?? item.price ?? 0,
             volume: item.volume ?? 0,
           })).filter((item: any) => item.close > 0 && item.date);
 
@@ -96,15 +93,11 @@ serve(async (req) => {
           } else {
             data = { history };
           }
-        } else {
-          console.log(`SAHMK History failed: ${response.status}`);
         }
       } catch (histError) {
         console.log('Could not fetch history:', histError);
       }
     }
-
-    console.log('Returning data for:', symbol);
 
     return new Response(
       JSON.stringify({ success: true, data }),
