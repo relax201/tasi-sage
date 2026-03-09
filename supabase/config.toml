@@ -31,3 +31,6 @@ verify_jwt = false
 
 [functions.fetch-market-indices]
 verify_jwt = false
+
+[functions.speculative-analysis]
+verify_jwt = false
