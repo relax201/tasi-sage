@@ -51,12 +51,12 @@ const StockDetails = () => {
     open: stockData.open || 0,
     previousClose: stockData.previousClose || 0,
     marketCap: stockData.marketCap || 0,
-    pe: stockData.peRatio ?? stockData.pe ?? 0,
-    eps: stockData.eps ?? 0,
+    pe: (stockData as any).peRatio ?? (stockData as any).pe ?? 0,
+    eps: (stockData as any).eps ?? 0,
     recommendation: 'احتفاظ' as const,
     riskLevel: 'متوسط' as const,
     aiScore: 50,
-    history: stockData.history || [],
+    history: (stockData as any).history || [],
   } : null;
 
   const isLive = !!stockData && stockData.price > 0;
