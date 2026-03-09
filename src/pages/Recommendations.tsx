@@ -1,101 +1,77 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Filter, Loader2, Zap, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
+import { Zap, Filter, Loader2, TrendingUp, TrendingDown, BarChart3, RefreshCw, Activity } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { RecommendationCard } from '@/components/recommendations/RecommendationCard';
 import { useAllStocks } from '@/hooks/useStockData';
+import { getSpeculativeAnalysis, type SpeculativeResult } from '@/lib/api/stockApi';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { LiveStock } from '@/lib/api/stockApi';
+import { useToast } from '@/hooks/use-toast';
 
 type FilterType = 'all' | 'buy' | 'hold' | 'sell';
 
-// === خوارزمية التوصيات المضاربية ===
-
-const getMomentumScore = (stock: LiveStock): number => {
-  // زخم السعر: التغير اليومي (وزن 40%)
-  const priceScore = Math.min(Math.max(stock.changePercent * 10 + 50, 0), 100);
-  
-  // زخم الحجم: حجم تداول مرتفع = إشارة أقوى (وزن 30%)
-  const avgVolume = 2000000; // متوسط تقريبي
-  const volumeRatio = (stock.volume || 0) / avgVolume;
-  const volumeScore = Math.min(volumeRatio * 30 + 20, 100);
-  
-  // قوة الاتجاه: العلاقة بين الافتتاح والإغلاق (وزن 15%)
-  const openCloseSpread = stock.open ? ((stock.price - stock.open) / stock.open) * 100 : 0;
-  const trendScore = Math.min(Math.max(openCloseSpread * 15 + 50, 0), 100);
-  
-  // نطاق التداول اليومي (وزن 15%)
-  const dayRange = stock.high && stock.low ? ((stock.high - stock.low) / stock.low) * 100 : 0;
-  const volatilityScore = Math.min(dayRange * 10 + 30, 100);
-  
-  return Math.round(priceScore * 0.4 + volumeScore * 0.3 + trendScore * 0.15 + volatilityScore * 0.15);
-};
-
-const getSpeculativeRecommendation = (stock: LiveStock, score: number): string => {
-  const volumeHigh = (stock.volume || 0) > 3000000;
-  const strongMove = Math.abs(stock.changePercent) > 3;
-  
-  if (stock.changePercent > 3 && volumeHigh) return 'دخول قوي';
-  if (stock.changePercent > 1.5 && score > 60) return 'دخول';
-  if (stock.changePercent > 0 && stock.changePercent <= 1.5) return 'مراقبة';
-  if (stock.changePercent > -2 && stock.changePercent <= 0) return 'انتظار';
-  if (stock.changePercent <= -3 && volumeHigh) return 'خروج فوري';
-  return 'خروج';
-};
-
-const getSpeculativeRisk = (stock: LiveStock): 'منخفض' | 'متوسط' | 'مرتفع' => {
-  const absChange = Math.abs(stock.changePercent);
-  const volumeHigh = (stock.volume || 0) > 5000000;
-  
-  if (absChange > 5 || (absChange > 3 && volumeHigh)) return 'مرتفع';
-  if (absChange > 2 || volumeHigh) return 'متوسط';
-  return 'منخفض';
-};
-
-const getEntryPrice = (stock: LiveStock, recommendation: string): number => {
-  if (recommendation.includes('دخول')) {
-    // نقطة الدخول = السعر الحالي أو أقل قليلاً
-    return parseFloat((stock.price * 0.995).toFixed(2));
-  }
-  return stock.price;
-};
-
-const getTargetPrice = (stock: LiveStock, score: number): number => {
-  const multiplier = score > 70 ? 1.05 : score > 50 ? 1.03 : 1.015;
-  return parseFloat((stock.price * multiplier).toFixed(2));
-};
-
-const getStopLoss = (stock: LiveStock): number => {
-  return parseFloat((stock.price * 0.97).toFixed(2));
-};
-
 const Recommendations = () => {
   const [filter, setFilter] = useState<FilterType>('all');
-  const { data: stocks, isLoading, error } = useAllStocks();
+  const { data: stocks, isLoading: isLoadingStocks } = useAllStocks();
+  const [aiResults, setAiResults] = useState<SpeculativeResult[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const { toast } = useToast();
 
-  const stocksWithRecommendations = (stocks || []).map(stock => {
-    const momentumScore = getMomentumScore(stock);
-    const recommendation = getSpeculativeRecommendation(stock, momentumScore);
-    const riskLevel = getSpeculativeRisk(stock);
-    const entryPrice = getEntryPrice(stock, recommendation);
-    const targetPrice = getTargetPrice(stock, momentumScore);
-    const stopLoss = getStopLoss(stock);
-    
+  const handleAnalyze = async () => {
+    if (!stocks?.length) return;
+    setIsAnalyzing(true);
+    try {
+      const results = await getSpeculativeAnalysis(stocks);
+      setAiResults(results);
+      setHasAnalyzed(true);
+      toast({ title: 'تم التحليل', description: `تم تحليل ${results.length} سهم بنجاح` });
+    } catch (error: any) {
+      toast({ title: 'خطأ في التحليل', description: error.message || 'فشل التحليل', variant: 'destructive' });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Build display data - use AI results if available, otherwise basic momentum
+  const displayStocks = hasAnalyzed ? aiResults.map(stock => ({
+    ...stock,
+    recommendation: stock.aiSignal,
+    aiScore: stock.aiConfidence,
+    riskLevel: stock.aiRiskLevel as 'منخفض' | 'متوسط' | 'مرتفع',
+    entryPrice: stock.aiEntryPrice,
+    targetPrice: stock.aiTargetPrice,
+    stopLoss: stock.aiStopLoss,
+    reasoning: stock.aiReasoning,
+    technicalSignal: stock.aiTechnicalSignal,
+    momentum: stock.aiMomentum,
+  })) : (stocks || []).map(stock => {
+    const score = Math.min(100, Math.max(0, Math.round(50 + stock.changePercent * 5 + Math.min((stock.volume || 0) / 1000000, 10))));
     return {
       ...stock,
-      recommendation: recommendation as any,
-      aiScore: momentumScore,
-      riskLevel,
-      entryPrice,
-      targetPrice,
-      stopLoss,
-      pe: stock.price / 5,
-      eps: 5,
+      recommendation: stock.changePercent > 3 && (stock.volume || 0) > 3000000 ? 'دخول قوي' :
+        stock.changePercent > 1.5 ? 'دخول' :
+        stock.changePercent > 0 ? 'مراقبة' :
+        stock.changePercent > -2 ? 'انتظار' :
+        stock.changePercent <= -3 ? 'خروج فوري' : 'خروج',
+      aiScore: score,
+      riskLevel: (Math.abs(stock.changePercent) > 5 ? 'مرتفع' : Math.abs(stock.changePercent) > 2 ? 'متوسط' : 'منخفض') as 'منخفض' | 'متوسط' | 'مرتفع',
+      entryPrice: stock.price * 0.995,
+      targetPrice: stock.price * (score > 70 ? 1.05 : 1.03),
+      stopLoss: stock.price * 0.97,
+      reasoning: '',
+      technicalSignal: '',
+      momentum: '',
+      rsi: 0,
+      macd: 0,
+      sma20: 0,
+      sma50: 0,
+      volumeRatio: 0,
     };
   });
 
-  const filteredStocks = stocksWithRecommendations
+  const filteredStocks = displayStocks
     .filter(stock => {
       if (filter === 'all') return true;
       if (filter === 'buy') return stock.recommendation.includes('دخول');
@@ -106,17 +82,16 @@ const Recommendations = () => {
     .sort((a, b) => b.aiScore - a.aiScore);
 
   const filters: { value: FilterType; label: string; icon: any; count: number }[] = [
-    { value: 'all', label: 'الكل', icon: BarChart3, count: stocksWithRecommendations.length },
-    { value: 'buy', label: 'فرص الدخول', icon: TrendingUp, count: stocksWithRecommendations.filter(s => s.recommendation.includes('دخول')).length },
-    { value: 'hold', label: 'مراقبة وانتظار', icon: Zap, count: stocksWithRecommendations.filter(s => s.recommendation === 'مراقبة' || s.recommendation === 'انتظار').length },
-    { value: 'sell', label: 'إشارات خروج', icon: TrendingDown, count: stocksWithRecommendations.filter(s => s.recommendation.includes('خروج')).length },
+    { value: 'all', label: 'الكل', icon: BarChart3, count: displayStocks.length },
+    { value: 'buy', label: 'فرص الدخول', icon: TrendingUp, count: displayStocks.filter(s => s.recommendation.includes('دخول')).length },
+    { value: 'hold', label: 'مراقبة وانتظار', icon: Activity, count: displayStocks.filter(s => s.recommendation === 'مراقبة' || s.recommendation === 'انتظار').length },
+    { value: 'sell', label: 'إشارات خروج', icon: TrendingDown, count: displayStocks.filter(s => s.recommendation.includes('خروج')).length },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Background Glow */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/3 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-success/5 rounded-full blur-3xl" />
@@ -128,14 +103,50 @@ const Recommendations = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Zap className="w-6 h-6 text-primary" />
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Zap className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">توصيات المضاربة</h1>
+                <p className="text-muted-foreground text-sm">إشارات مضاربية قصيرة المدى مبنية على التحليل الفني والذكاء الاصطناعي</p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-foreground">توصيات المضاربة</h1>
+            
+            <Button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || isLoadingStocks || !stocks?.length}
+              className="gap-2"
+              variant={hasAnalyzed ? 'outline' : 'default'}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  جاري التحليل بالذكاء الاصطناعي...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  {hasAnalyzed ? 'إعادة التحليل' : '🤖 تحليل بالذكاء الاصطناعي'}
+                </>
+              )}
+            </Button>
           </div>
-          <p className="text-muted-foreground">إشارات مضاربية قصيرة المدى مبنية على الزخم وحجم التداول وحركة السعر</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">⚠️ هذه التوصيات للمضاربة اليومية فقط وليست نصيحة استثمارية</p>
+          
+          {!hasAnalyzed && (
+            <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/10 text-sm text-muted-foreground">
+              💡 اضغط على زر "تحليل بالذكاء الاصطناعي" لجلب مؤشرات فنية حقيقية (RSI, MACD, SMA) وتوصيات AI متقدمة لأعلى 15 سهم بالزخم
+            </div>
+          )}
+          
+          {hasAnalyzed && (
+            <div className="mt-3 p-3 rounded-lg bg-success/5 border border-success/10 text-sm text-muted-foreground">
+              ✅ التوصيات مبنية على: مؤشر RSI الحقيقي، MACD، المتوسطات المتحركة (SMA20/50)، مقارنة الحجم بالمتوسط، وتحليل AI
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground/60 mt-2">⚠️ هذه التوصيات للمضاربة اليومية فقط وليست نصيحة استثمارية</p>
         </motion.div>
 
         {/* Filters */}
@@ -164,35 +175,27 @@ const Recommendations = () => {
           })}
         </motion.div>
 
-        {/* Results Count */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="text-sm text-muted-foreground mb-6"
         >
-          عرض {filteredStocks.length} إشارة مضاربية
+          عرض {filteredStocks.length} إشارة مضاربية {hasAnalyzed ? '(تحليل AI + فني)' : '(تحليل أولي)'}
         </motion.p>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-20">
+        {(isLoadingStocks || isAnalyzing) && (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <span className="mr-3 text-muted-foreground">جاري تحليل الزخم...</span>
+            <span className="text-muted-foreground">
+              {isAnalyzing ? 'جاري حساب المؤشرات الفنية وتحليل AI...' : 'جاري تحميل البيانات...'}
+            </span>
           </div>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="text-center py-20 text-destructive">
-            حدث خطأ في تحميل البيانات
-          </div>
-        )}
-
-        {/* Recommendations Grid */}
-        {!isLoading && !error && (
+        {!isLoadingStocks && !isAnalyzing && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredStocks.map((stock, index) => (
-              <RecommendationCard key={stock.symbol} stock={stock} index={index} />
+              <RecommendationCard key={stock.symbol} stock={stock} index={index} hasAI={hasAnalyzed} />
             ))}
           </div>
         )}
