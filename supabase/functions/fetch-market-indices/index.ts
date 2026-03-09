@@ -2,103 +2,69 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Fetch TASI market indices
+const SAHMK_BASE = 'https://app.sahmk.sa/api/v1';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Fetching TASI market indices...');
+    const apiKey = Deno.env.get('STOCK_API_KEY');
+    if (!apiKey) throw new Error('STOCK_API_KEY not configured');
 
-    // TASI main index symbol
-    const indices = [
-      { symbol: '^TASI.SR', name: 'تاسي', yahooSymbol: '^TASI.SR' },
-    ];
+    console.log('Fetching market indices via SAHMK API...');
 
-    // Try to fetch TASI index
-    const tasiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/%5ETASI.SR?interval=1d&range=1d`;
-    
-    let tasiData = null;
-    
-    try {
-      const response = await fetch(tasiUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const result = data?.chart?.result?.[0];
-        
-        if (result) {
-          const meta = result.meta;
-          const price = meta?.regularMarketPrice || 0;
-          const previousClose = meta?.chartPreviousClose || meta?.previousClose || price;
-          
-          tasiData = {
-            name: 'تاسي',
-            value: price,
-            change: price - previousClose,
-            changePercent: previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0,
-          };
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching TASI index:', err);
+    const url = `${SAHMK_BASE}/market/summary/`;
+    const response = await fetch(url, {
+      headers: { 'X-API-Key': apiKey }
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`SAHMK market summary error ${response.status}: ${errText}`);
+      throw new Error(`SAHMK API error: ${response.status}`);
     }
 
-    // If TASI fetch failed, calculate from top stocks
-    if (!tasiData) {
-      console.log('Calculating TASI from top stocks...');
-      
-      // Fetch top stocks to estimate index
-      const topStocks = ['2222.SR', '1180.SR', '2010.SR', '7010.SR', '1120.SR'];
-      let totalChange = 0;
-      let count = 0;
-      
-      for (const symbol of topStocks) {
-        try {
-          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-          const response = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            const result = data?.chart?.result?.[0];
-            if (result?.meta) {
-              const price = result.meta.regularMarketPrice || 0;
-              const prev = result.meta.chartPreviousClose || price;
-              if (prev > 0) {
-                totalChange += ((price - prev) / prev) * 100;
-                count++;
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Error fetching ${symbol}:`, err);
-        }
+    const apiData = await response.json();
+    const summary = apiData.data || apiData;
+
+    // Extract TASI index from market summary
+    let marketIndices = [];
+
+    if (summary.tasi || summary.index || summary.indices) {
+      const tasi = summary.tasi || summary.index || (Array.isArray(summary.indices) ? summary.indices[0] : null);
+      if (tasi) {
+        marketIndices.push({
+          name: 'تاسي',
+          value: tasi.value ?? tasi.last_price ?? tasi.close ?? 0,
+          change: tasi.change ?? 0,
+          changePercent: tasi.change_percent ?? tasi.percent_change ?? 0,
+        });
       }
-      
-      const avgChange = count > 0 ? totalChange / count : 0;
-      const estimatedValue = 12000 * (1 + avgChange / 100);
-      
-      tasiData = {
+    } else if (Array.isArray(summary)) {
+      // If response is an array of indices
+      marketIndices = summary.map((idx: any) => ({
+        name: idx.name || idx.index_name || 'تاسي',
+        value: idx.value ?? idx.last_price ?? idx.close ?? 0,
+        change: idx.change ?? 0,
+        changePercent: idx.change_percent ?? idx.percent_change ?? 0,
+      }));
+    } else {
+      // Try to extract directly from flat response
+      marketIndices.push({
         name: 'تاسي',
-        value: Math.round(estimatedValue * 100) / 100,
-        change: Math.round(estimatedValue * avgChange / 100) / 100,
-        changePercent: Math.round(avgChange * 100) / 100,
-      };
+        value: summary.value ?? summary.last_price ?? summary.close ?? 0,
+        change: summary.change ?? 0,
+        changePercent: summary.change_percent ?? summary.percent_change ?? 0,
+      });
     }
 
-    const marketIndices = [tasiData];
+    // Filter out zero-value entries
+    marketIndices = marketIndices.filter((idx: any) => idx.value > 0);
 
     console.log('Market indices:', JSON.stringify(marketIndices));
 
