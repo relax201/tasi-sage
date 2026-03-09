@@ -86,16 +86,28 @@ serve(async (req) => {
       throw new Error(`SAHMK API error: ${response.status}`);
     }
 
-    const apiData = await response.json();
-    const quotes = apiData?.data || apiData?.results || apiData || [];
+    const rawText = await response.text();
+    console.log('SAHMK raw response (first 2000 chars):', rawText.substring(0, 2000));
+    
+    const apiData = JSON.parse(rawText);
+    console.log('SAHMK response keys:', Object.keys(apiData));
+    console.log('SAHMK response type:', typeof apiData, Array.isArray(apiData));
+    
+    const quotes = apiData?.data || apiData?.results || apiData?.quotes || apiData || [];
+    console.log('Quotes type:', typeof quotes, Array.isArray(quotes), 'length:', Array.isArray(quotes) ? quotes.length : 'N/A');
 
     // Build a lookup map from API response
     const quoteMap: Record<string, any> = {};
     const quoteArray = Array.isArray(quotes) ? quotes : Object.values(quotes);
+    console.log('QuoteArray length:', quoteArray.length);
+    if (quoteArray.length > 0) {
+      console.log('First quote sample:', JSON.stringify(quoteArray[0]).substring(0, 500));
+    }
     for (const q of quoteArray) {
-      const sym = q.symbol?.toString() || q.code?.toString() || '';
+      const sym = q.symbol?.toString() || q.code?.toString() || q.ticker?.toString() || '';
       if (sym) quoteMap[sym] = q;
     }
+    console.log('QuoteMap keys:', Object.keys(quoteMap).slice(0, 10));
 
     const validStocks = tasiStocks.map(stock => {
       const q = quoteMap[stock.symbol];
