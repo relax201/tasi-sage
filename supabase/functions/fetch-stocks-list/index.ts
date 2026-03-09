@@ -7,7 +7,6 @@ const corsHeaders = {
 
 const SAHMK_BASE = 'https://app.sahmk.sa/api/v1';
 
-// All major TASI stocks
 const tasiStocks = [
   { symbol: '1180', name: 'الأهلي السعودي', sector: 'البنوك' },
   { symbol: '1120', name: 'الراجحي', sector: 'البنوك' },
@@ -66,13 +65,10 @@ serve(async (req) => {
 
   try {
     const apiKey = Deno.env.get('STOCK_API_KEY');
-    if (!apiKey) {
-      throw new Error('STOCK_API_KEY not configured');
-    }
+    if (!apiKey) throw new Error('STOCK_API_KEY not configured');
 
     console.log('Fetching TASI stocks via SAHMK API...');
 
-    // Use batch endpoint for efficiency
     const symbols = tasiStocks.map(s => s.symbol).join(',');
     const url = `${SAHMK_BASE}/quotes/?symbols=${symbols}`;
 
@@ -86,53 +82,43 @@ serve(async (req) => {
       throw new Error(`SAHMK API error: ${response.status}`);
     }
 
-    const rawText = await response.text();
-    console.log('SAHMK raw response (first 2000 chars):', rawText.substring(0, 2000));
+    const apiData = await response.json();
     
-    const apiData = JSON.parse(rawText);
-    console.log('SAHMK response keys:', Object.keys(apiData));
-    console.log('SAHMK response type:', typeof apiData, Array.isArray(apiData));
-    
-    const quotes = apiData?.data || apiData?.results || apiData?.quotes || apiData || [];
-    console.log('Quotes type:', typeof quotes, Array.isArray(quotes), 'length:', Array.isArray(quotes) ? quotes.length : 'N/A');
-
-    // Build a lookup map from API response
-    const quoteMap: Record<string, any> = {};
+    // SAHMK returns { quotes: [...], count: N }
+    const quotes = apiData?.quotes || apiData?.data || apiData?.results || apiData || [];
     const quoteArray = Array.isArray(quotes) ? quotes : Object.values(quotes);
-    console.log('QuoteArray length:', quoteArray.length);
-    if (quoteArray.length > 0) {
-      console.log('First quote sample:', JSON.stringify(quoteArray[0]).substring(0, 500));
-    }
+
+    // Build lookup map
+    const quoteMap: Record<string, any> = {};
     for (const q of quoteArray) {
-      const sym = q.symbol?.toString() || q.code?.toString() || q.ticker?.toString() || '';
+      const sym = q.symbol?.toString() || '';
       if (sym) quoteMap[sym] = q;
     }
-    console.log('QuoteMap keys:', Object.keys(quoteMap).slice(0, 10));
 
     const validStocks = tasiStocks.map(stock => {
       const q = quoteMap[stock.symbol];
       if (!q) return null;
 
-      const price = q.last_price ?? q.close ?? q.price ?? 0;
-      const prevClose = q.previous_close ?? q.prev_close ?? price;
-      const change = q.change ?? (price - prevClose);
-      const changePercent = q.change_percent ?? q.percent_change ?? (prevClose > 0 ? (change / prevClose) * 100 : 0);
+      const price = q.price ?? q.last_price ?? q.close ?? 0;
+      const change = q.change ?? 0;
+      const changePercent = q.change_percent ?? q.percent_change ?? 0;
+      const previousClose = price - change;
 
       return {
         symbol: stock.symbol,
-        name: q.name || q.company_name || stock.name,
+        name: q.name || stock.name,
         sector: q.sector || stock.sector,
         price,
         change,
         changePercent,
         volume: q.volume ?? 0,
-        high: q.high ?? q.day_high ?? 0,
-        low: q.low ?? q.day_low ?? 0,
-        open: q.open ?? 0,
-        previousClose: prevClose,
-        marketCap: q.market_cap ?? q.market_capitalization ?? 0,
-        fiftyTwoWeekHigh: q.week_52_high ?? q.fifty_two_week_high ?? 0,
-        fiftyTwoWeekLow: q.week_52_low ?? q.fifty_two_week_low ?? 0,
+        high: q.high ?? q.day_high ?? price,
+        low: q.low ?? q.day_low ?? price,
+        open: q.open ?? price,
+        previousClose,
+        marketCap: q.market_cap ?? 0,
+        fiftyTwoWeekHigh: q.week_52_high ?? 0,
+        fiftyTwoWeekLow: q.week_52_low ?? 0,
       };
     }).filter(s => s !== null && s.price > 0);
 
