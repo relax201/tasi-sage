@@ -35,70 +35,36 @@ serve(async (req) => {
     const apiData = JSON.parse(rawText);
     let marketIndices: any[] = [];
 
-    // Try multiple response formats
-    if (apiData.tasi) {
-      const t = apiData.tasi;
+    // SAHMK returns flat: { index_value, index_change, index_change_percent, total_volume, ... }
+    if (apiData.index_value) {
       marketIndices.push({
         name: 'تاسي',
-        value: t.value ?? t.price ?? t.last_price ?? t.close ?? 0,
-        change: t.change ?? 0,
-        changePercent: t.change_percent ?? t.percent_change ?? 0,
+        value: apiData.index_value,
+        change: apiData.index_change ?? 0,
+        changePercent: apiData.index_change_percent ?? 0,
       });
-    } else if (apiData.index) {
-      const t = apiData.index;
+    } else if (apiData.tasi) {
+      const t = apiData.tasi;
       marketIndices.push({
         name: 'تاسي',
         value: t.value ?? t.price ?? 0,
         change: t.change ?? 0,
         changePercent: t.change_percent ?? 0,
       });
-    } else if (apiData.indices && Array.isArray(apiData.indices)) {
-      marketIndices = apiData.indices.map((idx: any) => ({
-        name: idx.name || 'تاسي',
-        value: idx.value ?? idx.price ?? 0,
-        change: idx.change ?? 0,
-        changePercent: idx.change_percent ?? 0,
-      }));
+    } else if (apiData.data?.index_value) {
+      marketIndices.push({
+        name: 'تاسي',
+        value: apiData.data.index_value,
+        change: apiData.data.index_change ?? 0,
+        changePercent: apiData.data.index_change_percent ?? 0,
+      });
     } else if (Array.isArray(apiData)) {
       marketIndices = apiData.map((idx: any) => ({
         name: idx.name || 'تاسي',
-        value: idx.value ?? idx.price ?? 0,
-        change: idx.change ?? 0,
-        changePercent: idx.change_percent ?? 0,
+        value: idx.value ?? idx.index_value ?? idx.price ?? 0,
+        change: idx.change ?? idx.index_change ?? 0,
+        changePercent: idx.change_percent ?? idx.index_change_percent ?? 0,
       }));
-    } else if (apiData.data) {
-      // Nested data field
-      const d = apiData.data;
-      if (d.tasi) {
-        marketIndices.push({
-          name: 'تاسي',
-          value: d.tasi.value ?? d.tasi.price ?? 0,
-          change: d.tasi.change ?? 0,
-          changePercent: d.tasi.change_percent ?? 0,
-        });
-      } else if (Array.isArray(d)) {
-        marketIndices = d.map((idx: any) => ({
-          name: idx.name || 'تاسي',
-          value: idx.value ?? idx.price ?? 0,
-          change: idx.change ?? 0,
-          changePercent: idx.change_percent ?? 0,
-        }));
-      } else {
-        // Try flat object with value/change
-        marketIndices.push({
-          name: 'تاسي',
-          value: d.value ?? d.price ?? 0,
-          change: d.change ?? 0,
-          changePercent: d.change_percent ?? 0,
-        });
-      }
-    } else if (apiData.value || apiData.price) {
-      marketIndices.push({
-        name: 'تاسي',
-        value: apiData.value ?? apiData.price ?? 0,
-        change: apiData.change ?? 0,
-        changePercent: apiData.change_percent ?? 0,
-      });
     }
 
     marketIndices = marketIndices.filter((idx: any) => idx.value > 0);
