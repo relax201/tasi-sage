@@ -29,43 +29,45 @@ serve(async (req) => {
       throw new Error(`SAHMK API error: ${response.status}`);
     }
 
-    const apiData = await response.json();
-    const summary = apiData.data || apiData;
+    const rawText = await response.text();
+    console.log('Market summary raw (first 1000):', rawText.substring(0, 1000));
+    
+    const apiData = JSON.parse(rawText);
+    let marketIndices: any[] = [];
 
-    // Extract TASI index from market summary
-    let marketIndices = [];
-
-    if (summary.tasi || summary.index || summary.indices) {
-      const tasi = summary.tasi || summary.index || (Array.isArray(summary.indices) ? summary.indices[0] : null);
-      if (tasi) {
-        marketIndices.push({
-          name: 'تاسي',
-          value: tasi.value ?? tasi.last_price ?? tasi.close ?? 0,
-          change: tasi.change ?? 0,
-          changePercent: tasi.change_percent ?? tasi.percent_change ?? 0,
-        });
-      }
-    } else if (Array.isArray(summary)) {
-      // If response is an array of indices
-      marketIndices = summary.map((idx: any) => ({
-        name: idx.name || idx.index_name || 'تاسي',
-        value: idx.value ?? idx.last_price ?? idx.close ?? 0,
-        change: idx.change ?? 0,
-        changePercent: idx.change_percent ?? idx.percent_change ?? 0,
-      }));
-    } else {
-      // Try to extract directly from flat response
+    // SAHMK returns flat: { index_value, index_change, index_change_percent, total_volume, ... }
+    if (apiData.index_value) {
       marketIndices.push({
         name: 'تاسي',
-        value: summary.value ?? summary.last_price ?? summary.close ?? 0,
-        change: summary.change ?? 0,
-        changePercent: summary.change_percent ?? summary.percent_change ?? 0,
+        value: apiData.index_value,
+        change: apiData.index_change ?? 0,
+        changePercent: apiData.index_change_percent ?? 0,
       });
+    } else if (apiData.tasi) {
+      const t = apiData.tasi;
+      marketIndices.push({
+        name: 'تاسي',
+        value: t.value ?? t.price ?? 0,
+        change: t.change ?? 0,
+        changePercent: t.change_percent ?? 0,
+      });
+    } else if (apiData.data?.index_value) {
+      marketIndices.push({
+        name: 'تاسي',
+        value: apiData.data.index_value,
+        change: apiData.data.index_change ?? 0,
+        changePercent: apiData.data.index_change_percent ?? 0,
+      });
+    } else if (Array.isArray(apiData)) {
+      marketIndices = apiData.map((idx: any) => ({
+        name: idx.name || 'تاسي',
+        value: idx.value ?? idx.index_value ?? idx.price ?? 0,
+        change: idx.change ?? idx.index_change ?? 0,
+        changePercent: idx.change_percent ?? idx.index_change_percent ?? 0,
+      }));
     }
 
-    // Filter out zero-value entries
     marketIndices = marketIndices.filter((idx: any) => idx.value > 0);
-
     console.log('Market indices:', JSON.stringify(marketIndices));
 
     return new Response(
