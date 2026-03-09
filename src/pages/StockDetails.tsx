@@ -185,7 +185,7 @@ const StockDetails = () => {
 
           {/* Earnings History */}
           <EarningsHistory 
-            earnings={stockData?.earnings} 
+            earnings={(stockData as any)?.earnings} 
             currentPrice={stock.price}
           />
 
