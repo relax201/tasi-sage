@@ -62,14 +62,44 @@ export const useNotifications = () => {
     });
   }, [toast]);
 
-  // Function to check alerts against current prices (Simulation for demo/local testing)
+  // Track already-notified speculative opportunities to avoid duplicates
+  const [notifiedOpportunities, setNotifiedOpportunities] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(`notified_spec_${user?.id || 'guest'}`);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`notified_spec_${user?.id || 'guest'}`, JSON.stringify([...notifiedOpportunities]));
+  }, [notifiedOpportunities, user?.id]);
+
+  // Function to check alerts against current prices + speculative opportunities
   const checkAlertsAgainstPrices = useCallback(async (currentStocks: any[]) => {
+    if (!currentStocks?.length) return;
+
+    // === إشعارات فرص المضاربة القوية ===
+    const avgVolume = 2000000;
+    for (const stock of currentStocks) {
+      const isStrongEntry = stock.changePercent > 3 && (stock.volume || 0) > 3000000;
+      const key = `${stock.symbol}_${new Date().toDateString()}`;
+
+      if (isStrongEntry && !notifiedOpportunities.has(key)) {
+        setNotifiedOpportunities(prev => new Set(prev).add(key));
+        addNotification({
+          type: 'price_up',
+          title: `🔥 فرصة مضاربة: ${stock.name}`,
+          message: `دخول قوي! السهم ارتفع ${stock.changePercent.toFixed(2)}% بحجم تداول ${(stock.volume / 1000000).toFixed(1)}M`,
+          symbol: stock.symbol
+        });
+      }
+    }
+
+    // === تنبيهات الأسعار المحددة من المستخدم ===
     if (!user || !alerts.length) return;
 
     for (const alert of alerts) {
       if (!alert.is_active || alert.is_triggered) continue;
 
-      const stock = currentStocks.find(s => s.symbol === alert.stock_symbol);
+      const stock = currentStocks.find((s: any) => s.symbol === alert.stock_symbol);
       if (!stock) continue;
 
       const isTriggered = alert.alert_type === 'above' 
@@ -77,7 +107,6 @@ export const useNotifications = () => {
         : stock.price <= alert.target_price;
 
       if (isTriggered) {
-        // Update in Supabase
         const { error } = await supabase
           .from('price_alerts')
           .update({ is_triggered: true, triggered_at: new Date().toISOString() })
@@ -93,7 +122,7 @@ export const useNotifications = () => {
         }
       }
     }
-  }, [user, alerts, addNotification]);
+  }, [user, alerts, addNotification, notifiedOpportunities]);
 
   // Listen for changes in price_alerts table (Realtime)
   useEffect(() => {
