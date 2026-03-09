@@ -153,3 +153,59 @@ export const getAIAnalysis = async (stockData: LiveStock, analysisType: 'recomme
     throw error;
   }
 };
+
+// Speculative analysis result interface
+export interface SpeculativeResult {
+  symbol: string;
+  name: string;
+  sector: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  high: number;
+  low: number;
+  open: number;
+  previousClose: number;
+  // Technical indicators
+  rsi: number;
+  macd: number;
+  macdSignal: number;
+  sma20: number;
+  sma50: number;
+  volumeRatio: number;
+  avgVolume: number;
+  // AI recommendations
+  aiSignal: string;
+  aiEntryPrice: number;
+  aiTargetPrice: number;
+  aiStopLoss: number;
+  aiConfidence: number;
+  aiReasoning: string;
+  aiTechnicalSignal: string;
+  aiRiskLevel: string;
+  aiMomentum: string;
+}
+
+// Get speculative analysis for top stocks
+export const getSpeculativeAnalysis = async (stocks: LiveStock[]): Promise<SpeculativeResult[]> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('speculative-analysis', {
+      body: { stocks }
+    });
+
+    if (error) {
+      console.error('Error getting speculative analysis:', error);
+      throw error;
+    }
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get speculative analysis');
+    }
+
+    return data.data || [];
+  } catch (error) {
+    console.error('Failed to get speculative analysis:', error);
+    throw error;
+  }
+};
