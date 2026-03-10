@@ -155,7 +155,7 @@ symbol, signal (أحد: "دخول قوي", "دخول", "مراقبة", "انتظ
 
     const userPrompt = `حلل الأسهم التالية وقدم توصيات مضاربية لكل سهم. أجب بمصفوفة JSON فقط:\n\n${stocksSummary}`;
 
-    const aiResponse = await fetch('https://api.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
