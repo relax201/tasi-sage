@@ -38,6 +38,48 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_transactions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          price_per_share: number
+          quantity: number
+          stock_name: string
+          stock_symbol: string
+          total_amount: number
+          transaction_date: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          price_per_share: number
+          quantity: number
+          stock_name: string
+          stock_symbol: string
+          total_amount: number
+          transaction_date?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          price_per_share?: number
+          quantity?: number
+          stock_name?: string
+          stock_symbol?: string
+          total_amount?: number
+          transaction_date?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_alerts: {
         Row: {
           alert_type: string

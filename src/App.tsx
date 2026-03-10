@@ -10,6 +10,7 @@ import Recommendations from "./pages/Recommendations";
 import Auth from "./pages/Auth";
 import Favorites from "./pages/Favorites";
 import Alerts from "./pages/Alerts";
+import Portfolio from "./pages/Portfolio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/portfolio" element={<Portfolio />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
