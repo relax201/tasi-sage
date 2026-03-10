@@ -29,6 +29,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/portfolio" element={<Portfolio />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>

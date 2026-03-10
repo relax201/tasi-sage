@@ -21,6 +21,7 @@ const navItems = [
   { path: '/', label: 'لوحة التحكم', icon: LayoutDashboard },
   { path: '/stocks', label: 'الأسهم', icon: TrendingUp },
   { path: '/recommendations', label: 'التوصيات', icon: Search },
+  { path: '/portfolio', label: 'المحفظة', icon: Briefcase },
 ];
 
 export const Header = () => {
