@@ -68,10 +68,10 @@ serve(async (req) => {
   try {
     const { stocks } = await req.json();
     const apiKey = Deno.env.get('STOCK_API_KEY');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
     if (!apiKey) throw new Error('STOCK_API_KEY not configured');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
 
     console.log(`Analyzing ${stocks.length} stocks for speculative recommendations...`);
 
@@ -156,14 +156,14 @@ serve(async (req) => {
       `${s.name} (${s.symbol}): سعر=${s.price} تغير=${s.changePercent}% حجم=${s.volume} RSI=${s.rsi} MACD=${s.macd} SMA20=${s.sma20} SMA50=${s.sma50} نسبة_الحجم=${s.volumeRatio}x`
     ).join('\n');
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o',
         tools: [{
           type: "function",
           function: {
