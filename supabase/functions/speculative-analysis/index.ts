@@ -156,14 +156,14 @@ serve(async (req) => {
       `${s.name} (${s.symbol}): سعر=${s.price} تغير=${s.changePercent}% حجم=${s.volume} RSI=${s.rsi} MACD=${s.macd} SMA20=${s.sma20} SMA50=${s.sma50} نسبة_الحجم=${s.volumeRatio}x`
     ).join('\n');
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o',
         tools: [{
           type: "function",
           function: {
