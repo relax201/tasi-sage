@@ -6,7 +6,8 @@ import {
   LayoutDashboard, 
   Search, 
   Menu,
-  X
+  X,
+  Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ const navItems = [
   { path: '/', label: 'لوحة التحكم', icon: LayoutDashboard },
   { path: '/stocks', label: 'الأسهم', icon: TrendingUp },
   { path: '/recommendations', label: 'التوصيات', icon: Search },
+  { path: '/portfolio', label: 'المحفظة', icon: Briefcase },
 ];
 
 export const Header = () => {
