@@ -10,6 +10,7 @@ import Recommendations from "./pages/Recommendations";
 import Auth from "./pages/Auth";
 import Favorites from "./pages/Favorites";
 import Alerts from "./pages/Alerts";
+import Portfolio from "./pages/Portfolio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
