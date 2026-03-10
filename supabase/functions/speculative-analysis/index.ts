@@ -162,7 +162,7 @@ symbol, signal (أحد: "دخول قوي", "دخول", "مراقبة", "انتظ
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -173,8 +173,18 @@ symbol, signal (أحد: "دخول قوي", "دخول", "مراقبة", "انتظ
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error('AI error:', aiResponse.status, errText);
-      throw new Error('AI analysis failed');
+      console.error('AI Gateway error:', aiResponse.status, errText);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: 'تم تجاوز حد الاستخدام، حاول لاحقاً' }), {
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: 'يرجى إضافة رصيد للحساب' }), {
+          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      throw new Error(`AI analysis failed: ${aiResponse.status}`);
     }
 
     const aiResult = await aiResponse.json();
