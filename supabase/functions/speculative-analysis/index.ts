@@ -7,17 +7,14 @@ const corsHeaders = {
 
 const SAHMK_BASE = 'https://app.sahmk.sa/api/v1';
 
-// حساب RSI من البيانات التاريخية
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
-  
   let gains = 0, losses = 0;
   for (let i = closes.length - period; i < closes.length; i++) {
     const diff = closes[i] - closes[i - 1];
     if (diff > 0) gains += diff;
     else losses += Math.abs(diff);
   }
-  
   const avgGain = gains / period;
   const avgLoss = losses / period;
   if (avgLoss === 0) return 100;
@@ -25,7 +22,6 @@ function calculateRSI(closes: number[], period = 14): number {
   return 100 - (100 / (1 + rs));
 }
 
-// حساب MACD
 function calculateMACD(closes: number[]): { macd: number; signal: number; histogram: number } {
   const ema = (data: number[], period: number) => {
     const k = 2 / (period + 1);
@@ -35,25 +31,20 @@ function calculateMACD(closes: number[]): { macd: number; signal: number; histog
     }
     return ema;
   };
-  
   if (closes.length < 26) return { macd: 0, signal: 0, histogram: 0 };
-  
   const ema12 = ema(closes, 12);
   const ema26 = ema(closes, 26);
   const macdValue = ema12 - ema26;
-  const signalValue = macdValue * 0.8; // تقريب
-  
+  const signalValue = macdValue * 0.8;
   return { macd: macdValue, signal: signalValue, histogram: macdValue - signalValue };
 }
 
-// حساب المتوسطات المتحركة
 function calculateSMA(closes: number[], period: number): number {
   if (closes.length < period) return closes[closes.length - 1] || 0;
   const slice = closes.slice(-period);
   return slice.reduce((a, b) => a + b, 0) / period;
 }
 
-// حساب متوسط حجم التداول
 function calculateAvgVolume(volumes: number[], period = 20): number {
   if (!volumes.length) return 0;
   const slice = volumes.slice(-period);
@@ -68,14 +59,13 @@ serve(async (req) => {
   try {
     const { stocks } = await req.json();
     const apiKey = Deno.env.get('STOCK_API_KEY');
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!apiKey) throw new Error('STOCK_API_KEY not configured');
-    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
     console.log(`Analyzing ${stocks.length} stocks for speculative recommendations...`);
 
-    // الخطوة 1: جلب البيانات التاريخية لأعلى 15 سهم بالزخم
     const sortedByMomentum = [...stocks].sort((a: any, b: any) => {
       const scoreA = Math.abs(a.changePercent) * (a.volume || 1);
       const scoreB = Math.abs(b.changePercent) * (b.volume || 1);
@@ -84,7 +74,6 @@ serve(async (req) => {
 
     const technicalResults: any[] = [];
 
-    // جلب التاريخ وحساب المؤشرات الفنية لكل سهم
     for (const stock of sortedByMomentum) {
       try {
         const histResponse = await fetch(`${SAHMK_BASE}/history/${stock.symbol}/`, {
@@ -116,21 +105,15 @@ serve(async (req) => {
               volumeRatio = avgVolume > 0 ? (stock.volume || 0) / avgVolume : 1;
             }
           }
+        } else {
+          await histResponse.text();
         }
 
         technicalResults.push({
-          symbol: stock.symbol,
-          name: stock.name,
-          sector: stock.sector,
-          price: stock.price,
-          change: stock.change,
-          changePercent: stock.changePercent,
-          volume: stock.volume,
-          high: stock.high,
-          low: stock.low,
-          open: stock.open,
-          previousClose: stock.previousClose,
-          // المؤشرات الفنية الحقيقية
+          symbol: stock.symbol, name: stock.name, sector: stock.sector,
+          price: stock.price, change: stock.change, changePercent: stock.changePercent,
+          volume: stock.volume, high: stock.high, low: stock.low,
+          open: stock.open, previousClose: stock.previousClose,
           rsi: Math.round(rsi * 100) / 100,
           macd: Math.round(macd * 100) / 100,
           macdSignal: Math.round(macdSignal * 100) / 100,
@@ -151,58 +134,11 @@ serve(async (req) => {
 
     console.log(`Computed technicals for ${technicalResults.length} stocks, calling AI...`);
 
-    // الخطوة 2: إرسال للذكاء الاصطناعي للتحليل المضاربي
     const stocksSummary = technicalResults.map(s => 
       `${s.name} (${s.symbol}): سعر=${s.price} تغير=${s.changePercent}% حجم=${s.volume} RSI=${s.rsi} MACD=${s.macd} SMA20=${s.sma20} SMA50=${s.sma50} نسبة_الحجم=${s.volumeRatio}x`
     ).join('\n');
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        tools: [{
-          type: "function",
-          function: {
-            name: "speculative_recommendations",
-            description: "تقديم توصيات مضاربية لأسهم السوق السعودي",
-            parameters: {
-              type: "object",
-              properties: {
-                recommendations: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      symbol: { type: "string" },
-                      signal: { type: "string", enum: ["دخول قوي", "دخول", "مراقبة", "انتظار", "خروج", "خروج فوري"] },
-                      entryPrice: { type: "number" },
-                      targetPrice: { type: "number" },
-                      stopLoss: { type: "number" },
-                      confidence: { type: "number", description: "0-100" },
-                      reasoning: { type: "string", description: "سبب التوصية في جملة واحدة" },
-                      technicalSignal: { type: "string", enum: ["صعودي قوي", "صعودي", "محايد", "هبوطي", "هبوطي قوي"] },
-                      riskLevel: { type: "string", enum: ["منخفض", "متوسط", "مرتفع"] },
-                      momentum: { type: "string", enum: ["قوي", "متوسط", "ضعيف"] },
-                    },
-                    required: ["symbol", "signal", "entryPrice", "targetPrice", "stopLoss", "confidence", "reasoning", "technicalSignal", "riskLevel", "momentum"],
-                    additionalProperties: false
-                  }
-                }
-              },
-              required: ["recommendations"],
-              additionalProperties: false
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "speculative_recommendations" } },
-        messages: [
-          {
-            role: 'system',
-            content: `أنت محلل فني ومضارب خبير في السوق السعودي (تاسي) مع خبرة 10+ سنوات في المضاربة اليومية.
+    const systemPrompt = `أنت محلل فني ومضارب خبير في السوق السعودي (تاسي) مع خبرة 10+ سنوات في المضاربة اليومية.
 
 قواعد التحليل المضاربي:
 1. RSI فوق 70 = تشبع شرائي (خروج أو انتظار)، تحت 30 = تشبع بيعي (فرصة دخول)
@@ -214,48 +150,47 @@ serve(async (req) => {
 7. وقف الخسارة = 2-3% تحت نقطة الدخول
 8. كن حذراً وواقعياً - لا تبالغ في التفاؤل
 
-حلل كل سهم بناءً على المؤشرات الفنية الحقيقية المقدمة وقدم توصية مضاربية دقيقة.`
-          },
-          {
-            role: 'user',
-            content: `حلل الأسهم التالية وقدم توصيات مضاربية لكل سهم:\n\n${stocksSummary}`
-          }
+أجب بتنسيق JSON فقط بدون أي نص إضافي. يجب أن يكون الجواب مصفوفة JSON تحتوي على كائنات بالحقول التالية لكل سهم:
+symbol, signal (أحد: "دخول قوي", "دخول", "مراقبة", "انتظار", "خروج", "خروج فوري"), entryPrice, targetPrice, stopLoss, confidence (0-100), reasoning, technicalSignal (أحد: "صعودي قوي", "صعودي", "محايد", "هبوطي", "هبوطي قوي"), riskLevel (أحد: "منخفض", "متوسط", "مرتفع"), momentum (أحد: "قوي", "متوسط", "ضعيف")`;
+
+    const userPrompt = `حلل الأسهم التالية وقدم توصيات مضاربية لكل سهم. أجب بمصفوفة JSON فقط:\n\n${stocksSummary}`;
+
+    const aiResponse = await fetch('https://api.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
+        temperature: 0.3,
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error('AI error:', aiResponse.status, errText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'تم تجاوز حد الاستخدام، حاول لاحقاً' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'يرجى إضافة رصيد للحساب' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
       throw new Error('AI analysis failed');
     }
 
     const aiResult = await aiResponse.json();
     let recommendations: any[] = [];
 
-    // استخراج النتائج من tool_calls
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
-      try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        recommendations = parsed.recommendations || [];
-      } catch (e) {
-        console.error('Failed to parse tool call:', e);
+    const content = aiResult.choices?.[0]?.message?.content || '';
+    try {
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        recommendations = JSON.parse(jsonMatch[0]);
       }
+    } catch (e) {
+      console.error('Failed to parse AI response:', e, 'Content:', content.substring(0, 500));
     }
 
-    // دمج المؤشرات الفنية مع توصيات AI
     const finalResults = technicalResults.map(stock => {
       const aiRec = recommendations.find((r: any) => r.symbol === stock.symbol);
       return {
