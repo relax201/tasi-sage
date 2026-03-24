@@ -152,32 +152,43 @@ serve(async (req) => {
     const apiKey = Deno.env.get('STOCK_API_KEY');
     if (!apiKey) throw new Error('STOCK_API_KEY not configured');
 
-    console.log('Fetching TASI stocks via SAHMK API...');
+    console.log(`Fetching ${tasiStocks.length} TASI stocks via SAHMK API in batches...`);
 
-    const symbols = tasiStocks.map(s => s.symbol).join(',');
-    const url = `${SAHMK_BASE}/quotes/?symbols=${symbols}`;
+    // Split into batches of 30 to avoid API limits
+    const BATCH_SIZE = 30;
+    const quoteMap: Record<string, any> = {};
+    
+    for (let i = 0; i < tasiStocks.length; i += BATCH_SIZE) {
+      const batch = tasiStocks.slice(i, i + BATCH_SIZE);
+      const symbols = batch.map(s => s.symbol).join(',');
+      const url = `${SAHMK_BASE}/quotes/?symbols=${symbols}`;
 
-    const response = await fetch(url, {
-      headers: { 'X-API-Key': apiKey }
-    });
+      const response = await fetch(url, {
+        headers: { 'X-API-Key': apiKey }
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`SAHMK API error ${response.status}: ${errText}`);
-      throw new Error(`SAHMK API error: ${response.status}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`SAHMK API error batch ${i / BATCH_SIZE + 1}: ${response.status}: ${errText}`);
+        continue; // Skip failed batch, don't fail entirely
+      }
+
+      const apiData = await response.json();
+      const quotes = apiData?.quotes || apiData?.data || apiData?.results || apiData || [];
+      const quoteArray = Array.isArray(quotes) ? quotes : Object.values(quotes);
+
+      for (const q of quoteArray) {
+        const sym = q.symbol?.toString() || '';
+        if (sym) quoteMap[sym] = q;
+      }
+      
+      console.log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: fetched ${quoteArray.length} quotes`);
     }
 
-    const apiData = await response.json();
-    
-    // SAHMK returns { quotes: [...], count: N }
-    const quotes = apiData?.quotes || apiData?.data || apiData?.results || apiData || [];
-    const quoteArray = Array.isArray(quotes) ? quotes : Object.values(quotes);
-
-    // Build lookup map
-    const quoteMap: Record<string, any> = {};
-    for (const q of quoteArray) {
-      const sym = q.symbol?.toString() || '';
-      if (sym) quoteMap[sym] = q;
+    // Log missing stocks
+    const missingStocks = tasiStocks.filter(s => !quoteMap[s.symbol]);
+    if (missingStocks.length > 0) {
+      console.log(`Missing ${missingStocks.length} stocks: ${missingStocks.map(s => s.symbol).join(', ')}`);
     }
 
     const validStocks = tasiStocks.map(stock => {
