@@ -26,6 +26,45 @@ const signupSchema = z.object({
   path: ['confirmPassword']
 });
 
+
+const getLoginErrorMessage = (error: { message?: string; code?: string }) => {
+  const message = (error.message || '').toLowerCase();
+  const code = (error.code || '').toLowerCase();
+
+  if (message.includes('invalid login credentials')) {
+    return {
+      title: 'خطأ في تسجيل الدخول',
+      description: 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+    };
+  }
+
+  if (message.includes('email not confirmed') || code.includes('email_not_confirmed')) {
+    return {
+      title: 'تأكيد البريد الإلكتروني مطلوب',
+      description: 'يرجى تأكيد بريدك الإلكتروني أولاً ثم إعادة المحاولة'
+    };
+  }
+
+  if (message.includes('failed to fetch') || message.includes('network')) {
+    return {
+      title: 'مشكلة في الاتصال',
+      description: 'تعذر الاتصال بالخادم، تحقق من الإنترنت ثم أعد المحاولة'
+    };
+  }
+
+  if (message.includes('invalid api key') || message.includes('jwt')) {
+    return {
+      title: 'خطأ في إعدادات المصادقة',
+      description: 'إعدادات الاتصال غير صحيحة، يرجى التواصل مع إدارة النظام'
+    };
+  }
+
+  return {
+    title: 'خطأ',
+    description: error.message || 'حدث خطأ أثناء تسجيل الدخول'
+  };
+};
+
 const Auth = () => {
   const navigate = useNavigate();
   const { signIn, signUp, isAuthenticated } = useAuth();
@@ -64,36 +103,33 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    const { error } = await signIn(loginEmail, loginPassword);
+    const { data, error } = await signIn(loginEmail, loginPassword);
     setIsLoading(false);
 
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast({
-          title: 'خطأ في تسجيل الدخول',
-          description: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-          variant: 'destructive'
-        });
-      } else if (error.message.toLowerCase().includes('email not confirmed')) {
-        toast({
-          title: 'تأكيد البريد الإلكتروني مطلوب',
-          description: 'يرجى تأكيد بريدك الإلكتروني أولاً ثم إعادة المحاولة',
-          variant: 'destructive'
-        });
-      } else {
-        toast({
-          title: 'خطأ',
-          description: error.message,
-          variant: 'destructive'
-        });
-      }
-    } else {
+      const authError = getLoginErrorMessage(error);
       toast({
-        title: 'مرحباً بك!',
-        description: 'تم تسجيل الدخول بنجاح'
+        title: authError.title,
+        description: authError.description,
+        variant: 'destructive'
       });
-      navigate('/');
+      return;
     }
+
+    if (!data?.session) {
+      toast({
+        title: 'خطأ في تسجيل الدخول',
+        description: 'لم يتم إنشاء جلسة دخول، حاول مرة أخرى',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    toast({
+      title: 'مرحباً بك!',
+      description: 'تم تسجيل الدخول بنجاح'
+    });
+    navigate('/');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
