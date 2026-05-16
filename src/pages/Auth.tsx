@@ -74,6 +74,12 @@ const Auth = () => {
           description: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
           variant: 'destructive'
         });
+      } else if (error.message.toLowerCase().includes('email not confirmed')) {
+        toast({
+          title: 'تأكيد البريد الإلكتروني مطلوب',
+          description: 'يرجى تأكيد بريدك الإلكتروني أولاً ثم إعادة المحاولة',
+          variant: 'destructive'
+        });
       } else {
         toast({
           title: 'خطأ',
@@ -111,7 +117,7 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, signupFullName);
+    const { data, error } = await signUp(signupEmail, signupPassword, signupFullName);
     setIsLoading(false);
 
     if (error) {
@@ -129,11 +135,20 @@ const Auth = () => {
         });
       }
     } else {
-      toast({
-        title: 'تم إنشاء الحساب',
-        description: 'مرحباً بك في تاسي تحليل!'
-      });
-      navigate('/');
+      const hasSession = !!data?.session;
+
+      if (hasSession) {
+        toast({
+          title: 'تم إنشاء الحساب',
+          description: 'مرحباً بك في تاسي تحليل!'
+        });
+        navigate('/');
+      } else {
+        toast({
+          title: 'تم إنشاء الحساب بنجاح',
+          description: 'يرجى مراجعة بريدك الإلكتروني لتأكيد الحساب ثم تسجيل الدخول'
+        });
+      }
     }
   };
 
