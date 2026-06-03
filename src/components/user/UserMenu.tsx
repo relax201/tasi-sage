@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { TelegramSettingsDialog } from './TelegramSettingsDialog';
 
 export const UserMenu = () => {
   const { user, isAuthenticated, signOut, loading } = useAuth();
@@ -83,6 +84,10 @@ export const UserMenu = () => {
           <Bell className="ml-2 w-4 h-4" />
           <span>التنبيهات</span>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <div className="px-2 py-1.5">
+          <TelegramSettingsDialog />
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
           <LogOut className="ml-2 w-4 h-4" />
