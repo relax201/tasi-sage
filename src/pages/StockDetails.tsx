@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, RefreshCw, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { StockDetailsSkeleton } from '@/components/ui/page-skeletons';
 import { Header } from '@/components/layout/Header';
 import { StockInfo } from '@/components/stock/StockInfo';
 import { StockChart } from '@/components/stock/StockChart';
@@ -65,10 +66,7 @@ const StockDetails = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">جاري تحميل بيانات السهم...</p>
-        </div>
+        <StockDetailsSkeleton />
       </div>
     );
   }
