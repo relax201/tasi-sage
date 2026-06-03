@@ -8,6 +8,8 @@ import Stocks from "./pages/Stocks";
 import StockDetails from "./pages/StockDetails";
 import Recommendations from "./pages/Recommendations";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import Favorites from "./pages/Favorites";
 import Alerts from "./pages/Alerts";
 import Portfolio from "./pages/Portfolio";
@@ -27,6 +29,8 @@ const App = () => (
           <Route path="/stock/:symbol" element={<StockDetails />} />
           <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/portfolio" element={<Portfolio />} />

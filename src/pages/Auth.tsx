@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TrendingUp, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,13 @@ const Auth = () => {
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
+      return;
+    }
+    // Detect password recovery link
+    const hash = window.location.hash;
+    const search = window.location.search;
+    if (hash.includes('type=recovery') || search.includes('reset=true')) {
+      navigate('/auth/reset-password');
     }
   }, [isAuthenticated, navigate]);
 
@@ -267,6 +274,12 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
                   </Button>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    <Link to="/auth/forgot-password" className="text-primary hover:underline">
+                      نسيت كلمة المرور؟
+                    </Link>
+                  </p>
                 </form>
               </TabsContent>
 
