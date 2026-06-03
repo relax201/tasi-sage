@@ -137,20 +137,22 @@ export const TelegramSettingsDialog = () => {
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('telegram-test');
-      if (error) throw error;
+      // Check data first (function returns 500 with body containing the error message)
       if (data?.success) {
         toast({
           title: '✅ تم إرسال رسالة تجريبية',
           description: 'شوف Telegram بتاعك',
         });
-      } else {
-        throw new Error(data?.error || 'فشل إرسال الرسالة');
+        return;
       }
+      // Show the actual error from the function
+      const errorMsg = data?.error || error?.message || 'فشل إرسال الرسالة';
+      throw new Error(errorMsg);
     } catch (err: any) {
       console.error('Error sending test:', err);
       toast({
         title: 'خطأ',
-        description: err.message || 'فشل إرسال الرسالة التجريبية',
+        description: err?.message || 'فشل إرسال الرسالة التجريبية',
         variant: 'destructive',
       });
     } finally {
