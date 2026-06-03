@@ -14,6 +14,7 @@ import Favorites from "./pages/Favorites";
 import Alerts from "./pages/Alerts";
 import Portfolio from "./pages/Portfolio";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
