@@ -15,12 +15,14 @@ import Alerts from "./pages/Alerts";
 import Portfolio from "./pages/Portfolio";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -40,6 +42,7 @@ const App = () => (
         </Routes>
       </TooltipProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   </QueryClientProvider>
 );
 
