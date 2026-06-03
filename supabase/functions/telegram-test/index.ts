@@ -13,7 +13,7 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
   });
-  return response.json();
+  return await response.json();
 }
 
 serve(async (req) => {
@@ -30,37 +30,57 @@ serve(async (req) => {
       throw new Error('TELEGRAM_BOT_TOKEN not configured');
     }
 
-    // Get the authenticated user from the request
+    // Try to get user from the Authorization header
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
+    let userId: string | null = null;
+
+    if (authHeader) {
+      // Extract JWT from "Bearer xxx"
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      try {
+        // Use service role to verify the user
+        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+        if (!userError && user) {
+          userId = user.id;
+        } else {
+          console.error('Auth error:', userError);
+        }
+      } catch (e) {
+        console.error('Auth parse error:', e);
+      }
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      global: { headers: { authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    if (!userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'غير مصرح. سجّل دخول الأول.',
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Get the user's telegram_chat_id
+    // Get the user's profile
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('telegram_chat_id, telegram_notifications_enabled, full_name, email')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (profileError || !profile) {
-      throw new Error('Profile not found');
+      return new Response(
+        JSON.stringify({ success: false, error: 'البروفايل مش موجود' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!profile.telegram_chat_id) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Telegram not linked. Click "Connect Telegram" first.',
+          error: 'Telegram مش مربوط. دوس "ربط Telegram" الأول.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -81,15 +101,24 @@ serve(async (req) => {
     const result = await sendTelegramMessage(BOT_TOKEN, profile.telegram_chat_id, message);
 
     if (!result.ok) {
+      // Log the failure
+      await supabase.from('telegram_messages').insert({
+        user_id: userId,
+        chat_id: profile.telegram_chat_id,
+        message_type: 'test',
+        message_text: message,
+        status: 'failed',
+        error_message: result.description || 'Unknown Telegram error',
+      });
       return new Response(
-        JSON.stringify({ success: false, error: result.description }),
+        JSON.stringify({ success: false, error: result.description || 'Telegram error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Log
+    // Log success
     await supabase.from('telegram_messages').insert({
-      user_id: user.id,
+      user_id: userId,
       chat_id: profile.telegram_chat_id,
       message_type: 'test',
       message_text: message,
@@ -98,13 +127,13 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Test sent!' }),
+      JSON.stringify({ success: true, message: 'Test sent!', chat_id: profile.telegram_chat_id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in telegram-test:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: error?.message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
