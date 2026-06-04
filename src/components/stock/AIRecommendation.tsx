@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -26,6 +26,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { useAIAnalysis } from '@/hooks/useStockData';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface AIRecommendationProps {
@@ -36,12 +38,48 @@ export const AIRecommendation = ({ stock }: AIRecommendationProps) => {
   const { analysis, isLoading, fetchAnalysis } = useAIAnalysis(stock);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const { toast } = useToast();
 
   const handleGetAnalysis = async () => {
     await fetchAnalysis('recommendation');
     setHasLoadedOnce(true);
     setShowDetails(true);
   };
+
+  // Fire Telegram notification when the analysis indicates a buy/strong-buy
+  useEffect(() => {
+    if (!analysis?.recommendation) return;
+    const rec = analysis.recommendation;
+    if (rec.includes('شراء')) {
+      // Don't block the UI - fire and forget
+      supabase.functions.invoke('telegram-notify', {
+        body: {
+          recommendation: {
+            symbol: stock.symbol,
+            stock_name: stock.name,
+            price: stock.price,
+            change: stock.change,
+            changePercent: stock.changePercent,
+            target_price: analysis.targetPrice ?? analysis.targetPriceShort ?? 0,
+            stop_loss: analysis.stopLoss ?? 0,
+            confidence: analysis.confidence ?? 0,
+            recommendation: rec,
+            reasoning: analysis.reasoning ?? '',
+          },
+        },
+      })
+        .then(({ data }) => {
+          if (data?.success) {
+            toast({
+              title: '🔔 تم إرسال إشعار Telegram',
+              description: rec.includes('قوي') ? '🚨 شراء قوي' : '📊 شراء',
+            });
+          }
+        })
+        .catch(() => null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis?.recommendation]);
 
   // Get recommendation data from AI or fallback to stock data
   const recommendation = analysis?.recommendation || stock.recommendation;
