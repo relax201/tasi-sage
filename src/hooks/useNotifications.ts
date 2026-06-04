@@ -14,6 +14,18 @@ export interface Notification {
   symbol?: string;
 }
 
+export interface StockLike {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume?: number;
+  high?: number;
+  low?: number;
+  sector?: string;
+}
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const { alerts } = usePriceAlerts();
@@ -73,7 +85,7 @@ export const useNotifications = () => {
   }, [notifiedOpportunities, user?.id]);
 
   // Function to check alerts against current prices + speculative opportunities
-  const checkAlertsAgainstPrices = useCallback(async (currentStocks: any[]) => {
+  const checkAlertsAgainstPrices = useCallback(async (currentStocks: StockLike[]) => {
     if (!currentStocks?.length) return;
 
     // === إشعارات فرص المضاربة القوية ===
@@ -99,7 +111,7 @@ export const useNotifications = () => {
     for (const alert of alerts) {
       if (!alert.is_active || alert.is_triggered) continue;
 
-      const stock = currentStocks.find((s: any) => s.symbol === alert.stock_symbol);
+      const stock = currentStocks.find((s: StockLike) => s.symbol === alert.stock_symbol);
       if (!stock) continue;
 
       const isTriggered = alert.alert_type === 'above' 

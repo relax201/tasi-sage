@@ -1,4 +1,4 @@
-// Telegram Notify: Sends strong-buy alerts to subscribed users during trading hours
+// Telegram Notify: Sends buy + strong-buy alerts to subscribed users during trading hours
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,30 +9,48 @@ const corsHeaders = {
 
 // Saudi Tadawul trading hours: Sun-Thu (0-4 in JS) 10:00-15:00 Saudi time (UTC+3)
 function isWithinTradingHours(): { isOpen: boolean; reason: string } {
-  // Get current time in Saudi timezone (UTC+3)
   const now = new Date();
   const saudiTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
-  const day = saudiTime.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+  const day = saudiTime.getDay();
   const hour = saudiTime.getHours();
 
-  // Friday (5) and Saturday (6) are weekend
   if (day === 5 || day === 6) {
     return { isOpen: false, reason: 'weekend' };
   }
-
-  // Trading hours: 10:00 - 15:00
   if (hour < 10 || hour >= 15) {
     return { isOpen: false, reason: 'outside_trading_hours' };
   }
-
   return { isOpen: true, reason: 'trading_hours' };
 }
 
-function formatRecommendationMessage(rec: any): string {
-  const changeEmoji = rec.changePercent >= 0 ? '🟢' : '🔴';
-  const changeText = rec.changePercent >= 0 ? `+${rec.changePercent.toFixed(2)}%` : `${rec.changePercent.toFixed(2)}%`;
+// Determine recommendation strength
+type RecType = 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell' | 'unknown';
 
-  return `🚨 *توصية جديدة: شراء قوي*
+function classifyRecommendation(recText: string): RecType {
+  const text = (recText || '').toLowerCase();
+  const isStrong = text.includes('قوي');
+  if (text.includes('شراء')) {
+    return isStrong ? 'strong_buy' : 'buy';
+  }
+  if (text.includes('بيع')) {
+    return isStrong ? 'strong_sell' : 'sell';
+  }
+  if (text.includes('احتفاظ')) return 'hold';
+  return 'unknown';
+}
+
+function formatBuyMessage(rec: any, recType: RecType): string {
+  const changeEmoji = rec.changePercent >= 0 ? '🟢' : '🔴';
+  const changeText = rec.changePercent >= 0
+    ? `+${rec.changePercent.toFixed(2)}%`
+    : `${rec.changePercent.toFixed(2)}%`;
+
+  const isStrong = recType === 'strong_buy';
+  const header = isStrong
+    ? '🚨 *توصية جديدة: شراء قوي*'
+    : '📊 *توصية جديدة: شراء*';
+
+  return `${header}
 
 📊 *${rec.stock_name || rec.symbol}* (${rec.symbol})
 💰 السعر: ${rec.price?.toFixed(2)} ر.س ${changeEmoji} ${changeText}
@@ -72,9 +90,13 @@ serve(async (req) => {
       throw new Error('TELEGRAM_BOT_TOKEN not configured');
     }
 
+    // Parse the request body first (we may need `body.force` for testing)
+    const body = await req.json();
+    const recommendation = body.recommendation || body;
+
     // Check trading hours
     const tradingStatus = isWithinTradingHours();
-    if (!tradingStatus.isOpen) {
+    if (!tradingStatus.isOpen && !body.force) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -85,24 +107,21 @@ serve(async (req) => {
       );
     }
 
-    // Parse the request body
-    const body = await req.json();
-    const recommendation = body.recommendation || body;
-
     if (!recommendation.symbol) {
       throw new Error('Missing recommendation data (symbol required)');
     }
 
-    // Check if it's a strong buy
-    const recommendationText = (recommendation.recommendation || '').toLowerCase();
-    const isStrongBuy = recommendationText.includes('قوي') && recommendationText.includes('شراء');
+    // Classify the recommendation
+    const recType = classifyRecommendation(recommendation.recommendation || '');
+    const isBuyType = recType === 'strong_buy' || recType === 'buy';
 
-    if (!isStrongBuy && !body.force) {
+    if (!isBuyType && !body.force) {
       return new Response(
         JSON.stringify({
           success: false,
-          reason: 'not_strong_buy',
-          message: 'Only strong-buy alerts are sent',
+          reason: 'not_buy_recommendation',
+          message: 'Only buy/strong-buy alerts are sent',
+          recommendation_type: recType,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -111,27 +130,38 @@ serve(async (req) => {
     // Connect to Supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Find users who want strong-buy alerts
+    // Pick the right preference column based on the recommendation type
+    const prefColumn = recType === 'strong_buy'
+      ? 'telegram_strong_buy_alerts'
+      : 'telegram_buy_alerts';
+
+    // Find users who want this type of buy alert
     const { data: users, error: usersError } = await supabase
       .from('profiles')
       .select('user_id, telegram_chat_id')
       .eq('telegram_notifications_enabled', true)
-      .eq('telegram_strong_buy_alerts', true)
+      .eq(prefColumn, true)
       .not('telegram_chat_id', 'is', null);
 
     if (usersError) throw usersError;
 
     if (!users || users.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, sent: 0, message: 'No subscribers' }),
+        JSON.stringify({
+          success: true,
+          sent: 0,
+          message: 'No subscribers for this alert type',
+          recommendation_type: recType,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Format the message
-    const message = formatRecommendationMessage(recommendation);
+    const message = formatBuyMessage(recommendation, recType);
 
-    // Send to all subscribers
+    // Send to all matching subscribers
+    const messageType = recType === 'strong_buy' ? 'strong_buy_alert' : 'buy_alert';
     const results = await Promise.allSettled(
       users.map(async (user) => {
         const result = await sendTelegramMessage(BOT_TOKEN, user.telegram_chat_id, message);
@@ -139,7 +169,7 @@ serve(async (req) => {
         await supabase.from('telegram_messages').insert({
           user_id: user.user_id,
           chat_id: user.telegram_chat_id,
-          message_type: 'strong_buy_alert',
+          message_type: messageType,
           message_text: message,
           telegram_message_id: result?.result?.message_id,
           status: result.ok ? 'sent' : 'failed',
@@ -153,7 +183,14 @@ serve(async (req) => {
     const failed = results.length - sent;
 
     return new Response(
-      JSON.stringify({ success: true, sent, failed, total: users.length }),
+      JSON.stringify({
+        success: true,
+        sent,
+        failed,
+        total: users.length,
+        recommendation_type: recType,
+        preference_used: prefColumn,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

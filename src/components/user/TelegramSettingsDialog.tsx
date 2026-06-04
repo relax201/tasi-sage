@@ -21,6 +21,7 @@ interface TelegramSettings {
   telegram_chat_id: string | null;
   telegram_notifications_enabled: boolean;
   telegram_strong_buy_alerts: boolean;
+  telegram_buy_alerts: boolean;
   telegram_daily_summary: boolean;
   telegram_weekly_summary: boolean;
   telegram_linked_at: string | null;
@@ -53,7 +54,7 @@ export const TelegramSettingsDialog = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('telegram_chat_id, telegram_notifications_enabled, telegram_strong_buy_alerts, telegram_daily_summary, telegram_weekly_summary, telegram_linked_at')
+        .select('telegram_chat_id, telegram_notifications_enabled, telegram_strong_buy_alerts, telegram_buy_alerts, telegram_daily_summary, telegram_weekly_summary, telegram_linked_at')
         .eq('user_id', user.id)
         .single();
 
@@ -299,6 +300,18 @@ export const TelegramSettingsDialog = () => {
                     id="strong-buy"
                     checked={settings.telegram_strong_buy_alerts}
                     onCheckedChange={(checked) => handleToggle('telegram_strong_buy_alerts', checked)}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="buy" className="text-sm cursor-pointer">
+                    📊 توصيات "شراء"
+                  </Label>
+                  <Switch
+                    id="buy"
+                    checked={settings.telegram_buy_alerts}
+                    onCheckedChange={(checked) => handleToggle('telegram_buy_alerts', checked)}
                     disabled={saving}
                   />
                 </div>
