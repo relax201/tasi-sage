@@ -8,6 +8,7 @@ import { getSpeculativeAnalysis, type SpeculativeResult } from '@/lib/api/stockA
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type FilterType = 'all' | 'buy' | 'hold' | 'sell';
 
@@ -27,6 +28,47 @@ const Recommendations = () => {
       setAiResults(results);
       setHasAnalyzed(true);
       toast({ title: 'تم التحليل', description: `تم تحليل ${results.length} سهم بنجاح` });
+
+      // Fire-and-forget Telegram notifications for actionable signals
+      const buySignals = results.filter(r =>
+        r.aiSignal === 'دخول' || r.aiSignal === 'دخول قوي'
+      );
+      if (buySignals.length > 0) {
+        // Send notifications in parallel, don't block the UI
+        Promise.allSettled(
+          buySignals.map(signal =>
+            supabase.functions.invoke('telegram-notify', {
+              body: {
+                recommendation: {
+                  symbol: signal.symbol,
+                  stock_name: signal.name,
+                  price: signal.price,
+                  change: signal.change,
+                  changePercent: signal.changePercent,
+                  target_price: signal.aiTargetPrice,
+                  stop_loss: signal.aiStopLoss,
+                  confidence: signal.aiConfidence,
+                  recommendation: signal.aiSignal,
+                  reasoning: signal.aiReasoning,
+                },
+              },
+            }).catch(() => null) // swallow errors so it doesn't break the page
+          )
+        ).then(() => {
+          // Optional: surface a soft toast
+          const strong = buySignals.filter(s => s.aiSignal === 'دخول قوي').length;
+          const regular = buySignals.length - strong;
+          const parts = [];
+          if (strong > 0) parts.push(`${strong} شراء قوي`);
+          if (regular > 0) parts.push(`${regular} شراء`);
+          if (parts.length > 0) {
+            toast({
+              title: '🔔 تم إرسال إشعارات Telegram',
+              description: parts.join(' + '),
+            });
+          }
+        });
+      }
     } catch (error: any) {
       toast({ title: 'خطأ في التحليل', description: error.message || 'فشل التحليل', variant: 'destructive' });
     } finally {
